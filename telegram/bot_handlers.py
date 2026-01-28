@@ -3020,3 +3020,80 @@ def accounting_command(message):
     except Exception as e:
         print(f"❌ خطأ في accounting_command: {e}")
         bot.reply_to(message, "حدث خطأ!")
+
+
+# ==================== أمر بياناتي / بي ====================
+
+# تخزين أكواد صفحة المستخدم
+user_profile_codes = {}
+
+@bot.message_handler(func=lambda message: message.text and message.text.strip().lower() in ['بي', 'بياناتي', 'حسابي', 'ملفي', 'my', 'profile'])
+def my_profile_command(message):
+    """أمر بي/بياناتي - إرسال رابط الصفحة الشخصية مع كود مؤقت"""
+    try:
+        user_id = str(message.from_user.id)
+        user_name = message.from_user.first_name
+        if message.from_user.last_name:
+            user_name += ' ' + message.from_user.last_name
+        
+        # توليد كود مؤقت (6 أرقام)
+        code = str(random.randint(100000, 999999))
+        
+        # حفظ الكود (صالح لمدة 5 دقائق)
+        verification_codes[user_id] = {
+            'code': code,
+            'name': user_name,
+            'created_at': time.time()
+        }
+        
+        # جلب الرصيد
+        balance = get_balance(user_id)
+        
+        # إنشاء الرابط
+        profile_url = f"{SITE_URL}/my?id={user_id}"
+        
+        msg_text = f"""🔐 *صفحتك الخاصة*
+
+👤 *الاسم:* {user_name}
+🆔 *معرفك:* `{user_id}`
+💰 *رصيدك:* {balance:.2f} ر.س
+
+━━━━━━━━━━━━━━━━━
+
+🔑 *الكود المؤقت:* `{code}`
+⏰ *صالح لمدة:* 5 دقائق
+
+━━━━━━━━━━━━━━━━━
+
+🌐 *الرابط:*
+{profile_url}
+
+━━━━━━━━━━━━━━━━━
+
+📋 *طريقة الدخول:*
+1️⃣ اضغط على الرابط أعلاه
+2️⃣ أدخل معرفك (موجود أعلاه)
+3️⃣ أدخل الكود المؤقت
+4️⃣ اضغط دخول ✅
+
+⚠️ *لا تشارك الكود مع أحد!*"""
+
+        # إنشاء زر للرابط
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("🌐 فتح صفحتي", url=profile_url))
+        
+        bot.send_message(
+            message.chat.id,
+            msg_text,
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+        
+        print(f"✅ تم إرسال رابط الصفحة الشخصية للمستخدم {user_id}")
+        
+    except Exception as e:
+        print(f"❌ خطأ في my_profile_command: {e}")
+        import traceback
+        traceback.print_exc()
+        bot.reply_to(message, "❌ حدث خطأ! حاول مرة أخرى.")
+

@@ -2087,6 +2087,124 @@ def set_webhook():
 def health():
     return {'status': 'ok'}, 200
 
+# ============================================
+# 👤 صفحة المستخدم الخاصة (بي / بياناتي)
+# ============================================
+
+@app.route('/my')
+def my_profile_page():
+    """صفحة المستخدم الخاصة"""
+    user_id = request.args.get('id', '')
+    return render_template('my_profile.html', user_id=user_id)
+
+@app.route('/api/my/verify', methods=['POST'])
+def verify_my_profile():
+    """التحقق من كود الدخول للصفحة الشخصية"""
+    try:
+        data = request.get_json()
+        user_id = str(data.get('user_id', '')).strip()
+        code = str(data.get('code', '')).strip()
+        
+        if not user_id or not code:
+            return jsonify({'status': 'error', 'message': 'يرجى إدخال المعرف والكود'})
+        
+        # التحقق من الكود
+        result = verify_code(user_id, code)
+        
+        if result:
+            # حذف الكود بعد الاستخدام
+            if user_id in verification_codes:
+                del verification_codes[user_id]
+            return jsonify({'status': 'success', 'message': 'تم التحقق بنجاح'})
+        else:
+            return jsonify({'status': 'error', 'message': 'كود خاطئ أو منتهي الصلاحية'})
+            
+    except Exception as e:
+        print(f"❌ خطأ في verify_my_profile: {e}")
+        return jsonify({'status': 'error', 'message': 'حدث خطأ'})
+
+@app.route('/api/my/data')
+def get_my_profile_data():
+    """جلب بيانات المستخدم الشخصية"""
+    try:
+        user_id = str(request.args.get('user_id', '')).strip()
+        
+        if not user_id:
+            return jsonify({'status': 'error', 'message': 'معرف المستخدم مطلوب'})
+        
+        # جلب بيانات المستخدم
+        user_data = {}
+        balance = 0.0
+        name = 'مستخدم'
+        
+        if db:
+            user_ref = db.collection('users').document(user_id)
+            user_doc = user_ref.get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                balance = user_data.get('balance', 0.0)
+                name = user_data.get('name', 'مستخدم')
+        
+        # جلب المشتريات
+        purchases = []
+        if db:
+            try:
+                purchases_ref = db.collection('purchases')
+                if USE_FIELD_FILTER:
+                    purchases_ref = purchases_ref.where(filter=FieldFilter('buyer_id', '==', user_id))
+                else:
+                    purchases_ref = purchases_ref.where('buyer_id', '==', user_id)
+                
+                for doc in purchases_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(20).stream():
+                    p = doc.to_dict()
+                    created_at = p.get('created_at')
+                    if hasattr(created_at, 'isoformat'):
+                        created_at = created_at.isoformat()
+                    purchases.append({
+                        'product_name': p.get('product_name', p.get('item_name', 'منتج')),
+                        'price': float(p.get('price', 0)),
+                        'created_at': created_at
+                    })
+            except Exception as e:
+                print(f"⚠️ خطأ في جلب المشتريات: {e}")
+        
+        # جلب سجل الشحن
+        charges = []
+        if db:
+            try:
+                charges_ref = db.collection('charge_history')
+                if USE_FIELD_FILTER:
+                    charges_ref = charges_ref.where(filter=FieldFilter('user_id', '==', user_id))
+                else:
+                    charges_ref = charges_ref.where('user_id', '==', user_id)
+                
+                for doc in charges_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(20).stream():
+                    c = doc.to_dict()
+                    created_at = c.get('created_at')
+                    if hasattr(created_at, 'isoformat'):
+                        created_at = created_at.isoformat()
+                    charges.append({
+                        'amount': float(c.get('amount', 0)),
+                        'method': c.get('method', 'unknown'),
+                        'created_at': created_at
+                    })
+            except Exception as e:
+                print(f"⚠️ خطأ في جلب سجل الشحن: {e}")
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'name': name,
+                'balance': balance,
+                'purchases': purchases,
+                'charges': charges
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ خطأ في get_my_profile_data: {e}")
+        return jsonify({'status': 'error', 'message': 'حدث خطأ'})
+
 # مسار لرفع البيانات إلى Firebase (للمالك فقط)
 @app.route('/migrate_to_firebase')
 def migrate_to_firebase_route():

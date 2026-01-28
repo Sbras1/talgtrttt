@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحتي الخاصة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --success: #00b894;
+            --danger: #e74c3c;
+            --warning: #fdcb6e;
+            --bg: #1a1a2e;
+            --card: #16213e;
+            --card2: #1e2a4a;
+            --text: #ffffff;
+            --text-muted: #b2bec3;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        /* صفحة تسجيل الدخول */
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: var(--card);
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .login-container h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .login-container p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #2d3a5a;
+            border-radius: 12px;
+            background: var(--card2);
+            color: var(--text);
+            font-size: 16px;
+            font-family: 'Tajawal', sans-serif;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #a29bfe);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(108, 92, 231, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .error-msg {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        /* صفحة البيانات */
+        .profile-container { display: none; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-card {
+            background: linear-gradient(135deg, var(--primary), #a29bfe);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 15px;
+        }
+        .user-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .user-id {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        .balance-box {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .balance-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .balance-value {
+            font-size: 36px;
+            font-weight: bold;
+        }
+        
+        .section {
+            background: var(--card);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .item {
+            background: var(--card2);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item:last-child { margin-bottom: 0; }
+        .item-info h4 {
+            font-size: 15px;
+            margin-bottom: 5px;
+        }
+        .item-info p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .item-amount {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .item-amount.positive { color: var(--success); }
+        .item-amount.negative { color: var(--danger); }
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+        }
+        .logout-btn {
+            background: var(--card);
+            color: var(--text-muted);
+            border: 1px solid #2d3a5a;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .logout-btn:hover {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--card2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- صفحة تسجيل الدخول -->
+        <div class="login-container" id="loginPage">
+            <h1>🔐 تسجيل الدخول</h1>
+            <p>أدخل بياناتك للوصول لصفحتك الخاصة</p>
+            
+            <div class="error-msg" id="errorMsg"></div>
+            
+            <div class="input-group">
+                <label>🆔 معرف التيليجرام</label>
+                <input type="text" id="userId" placeholder="مثال: 123456789" value="{{ user_id or '' }}">
+            </div>
+            
+            <div class="input-group">
+                <label>🔑 الكود المؤقت</label>
+                <input type="text" id="verifyCode" placeholder="أدخل الكود من البوت" maxlength="6">
+            </div>
+            
+            <button class="btn btn-primary" id="loginBtn" onclick="login()">
+                🚀 دخول
+            </button>
+            
+            <p style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
+                💡 للحصول على الكود، أرسل <strong>بي</strong> أو <strong>بياناتي</strong> للبوت
+            </p>
+        </div>
+        
+        <!-- صفحة البيانات -->
+        <div class="profile-container" id="profilePage">
+            <div class="header">
+                <h1>👤 صفحتي الخاصة</h1>
+                <button class="logout-btn" onclick="logout()">🚪 خروج</button>
+            </div>
+            
+            <div class="user-card">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-name" id="userName">-</div>
+                <div class="user-id">🆔 <span id="userIdDisplay">-</span></div>
+                
+                <div class="balance-box">
+                    <div class="balance-label">💰 رصيدك الحالي</div>
+                    <div class="balance-value"><span id="userBalance">0</span> ر.س</div>
+                </div>
+            </div>
+            
+            <!-- سجل المشتريات -->
+            <div class="section">
+                <div class="section-title">📦 مشترياتك</div>
+                <div id="purchasesList">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        جاري التحميل...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- سجل الشحن -->
+            <div class="section">
+                <div class="section-title">💳 سجل الشحن</div>
+                <div id="chargesList">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        جاري التحميل...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // التحقق إذا كان المستخدم مسجل دخول
+        const savedSession = sessionStorage.getItem('my_profile_session');
+        if (savedSession) {
+            try {
+                const session = JSON.parse(savedSession);
+                if (session.user_id && session.expires > Date.now()) {
+                    showProfile(session.user_id);
+                }
+            } catch(e) {}
+        }
+        
+        async function login() {
+            const userId = document.getElementById('userId').value.trim();
+            const code = document.getElementById('verifyCode').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            errorMsg.style.display = 'none';
+            
+            if (!userId || !code) {
+                errorMsg.textContent = 'يرجى إدخال المعرف والكود';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'جاري التحقق...';
+            
+            try {
+                const response = await fetch('/api/my/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, code: code })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // حفظ الجلسة (صالحة لمدة 30 دقيقة)
+                    sessionStorage.setItem('my_profile_session', JSON.stringify({
+                        user_id: userId,
+                        expires: Date.now() + (30 * 60 * 1000)
+                    }));
+                    showProfile(userId);
+                } else {
+                    errorMsg.textContent = result.message || 'كود خاطئ أو منتهي الصلاحية';
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                errorMsg.textContent = 'حدث خطأ في الاتصال';
+                errorMsg.style.display = 'block';
+            }
+            
+            loginBtn.disabled = false;
+            loginBtn.textContent = '🚀 دخول';
+        }
+        
+        async function showProfile(userId) {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('profilePage').style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/my/data?user_id=${userId}`);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const data = result.data;
+                    
+                    // عرض معلومات المستخدم
+                    document.getElementById('userName').textContent = data.name || 'مستخدم';
+                    document.getElementById('userIdDisplay').textContent = userId;
+                    document.getElementById('userBalance').textContent = (data.balance || 0).toFixed(2);
+                    
+                    // عرض المشتريات
+                    renderPurchases(data.purchases || []);
+                    
+                    // عرض سجل الشحن
+                    renderCharges(data.charges || []);
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+        
+        function renderPurchases(purchases) {
+            const container = document.getElementById('purchasesList');
+            
+            if (purchases.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 لا توجد مشتريات بعد</div>';
+                return;
+            }
+            
+            container.innerHTML = purchases.map(p => `
+                <div class="item">
+                    <div class="item-info">
+                        <h4>📦 ${p.product_name || 'منتج'}</h4>
+                        <p>${formatDate(p.created_at)}</p>
+                    </div>
+                    <div class="item-amount negative">-${(p.price || 0).toFixed(2)} ر.س</div>
+                </div>
+            `).join('');
+        }
+        
+        function renderCharges(charges) {
+            const container = document.getElementById('chargesList');
+            
+            if (charges.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 لا يوجد سجل شحن بعد</div>';
+                return;
+            }
+            
+            container.innerHTML = charges.map(c => {
+                const methodIcon = {
+                    'key': '🔑',
+                    'admin': '👑',
+                    'edfapay': '💳',
+                    'card': '💳',
+                    'balance': '💰'
+                }[c.method] || '💳';
+                
+                const methodName = {
+                    'key': 'بطاقة شحن',
+                    'admin': 'شحن من الإدارة',
+                    'edfapay': 'EdfaPay',
+                    'card': 'بطاقة',
+                    'balance': 'رصيد'
+                }[c.method] || c.method;
+                
+                return `
+                    <div class="item">
+                        <div class="item-info">
+                            <h4>${methodIcon} ${methodName}</h4>
+                            <p>${formatDate(c.created_at)}</p>
+                        </div>
+                        <div class="item-amount positive">+${(c.amount || 0).toFixed(2)} ر.س</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return dateStr;
+                return date.toLocaleString('en-GB', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Riyadh'
+                }).replace(',', ' -');
+            } catch {
+                return dateStr;
+            }
+        }
+        
+        function logout() {
+            sessionStorage.removeItem('my_profile_session');
+            document.getElementById('loginPage').style.display = 'block';
+            document.getElementById('profilePage').style.display = 'none';
+            document.getElementById('verifyCode').value = '';
+        }
+        
+        // إرسال بالضغط على Enter
+        document.getElementById('verifyCode').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>
