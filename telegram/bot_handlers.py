@@ -1054,6 +1054,7 @@ def create_edfapay_invoice(user_id, amount, user_name):
         # التحقق من النجاح
         if response.status_code == 200 and result.get('redirect_url'):
             payment_url = result.get('redirect_url')
+            expires_at = time.time() + 600  # 10 دقائق
             
             # حفظ الطلب المعلق
             pending_payments[order_id] = {
@@ -1061,7 +1062,9 @@ def create_edfapay_invoice(user_id, amount, user_name):
                 'amount': amount,
                 'order_id': order_id,
                 'status': 'pending',
-                'created_at': time.time()
+                'created_at': time.time(),
+                'payment_url': payment_url,
+                'expires_at': expires_at
             }
             
             # حفظ في Firebase
@@ -1071,7 +1074,9 @@ def create_edfapay_invoice(user_id, amount, user_name):
                     'amount': amount,
                     'order_id': order_id,
                     'status': 'pending',
-                    'created_at': firestore.SERVER_TIMESTAMP
+                    'created_at': firestore.SERVER_TIMESTAMP,
+                    'payment_url': payment_url,
+                    'expires_at': expires_at
                 })
             except Exception as e:
                 print(f"⚠️ خطأ في حفظ الطلب في Firebase: {e}")
@@ -1087,10 +1092,15 @@ def create_edfapay_invoice(user_id, amount, user_name):
             except:
                 pass
             
+            # إرجاع رابط الصفحة الوسيطة بدلاً من رابط EdfaPay مباشرة
+            checkout_url = f"{SITE_URL}/payment/checkout/{order_id}"
+            
             return {
                 'success': True,
-                'payment_url': payment_url,
-                'invoice_id': order_id
+                'payment_url': checkout_url,  # رابط الصفحة الوسيطة مع المؤقت
+                'direct_payment_url': payment_url,  # رابط EdfaPay المباشر
+                'invoice_id': order_id,
+                'expires_at': expires_at
             }
         else:
             error_msg = result.get('message') or result.get('error') or result.get('errors') or result
@@ -1163,7 +1173,8 @@ def handle_user_state_message(message):
                 bot.edit_message_text(
                     f"✅ *تم إنشاء طلب الشحن!*\n\n"
                     f"💰 المبلغ: {amount} ريال\n"
-                    f"📋 رقم الطلب: `{result['invoice_id']}`\n\n"
+                    f"📋 رقم الطلب: `{result['invoice_id']}`\n"
+                    f"⏱️ صالح لمدة: *10 دقائق*\n\n"
                     f"👇 اضغط الزر أدناه للدفع:\n\n"
                     f"⚠️ بعد الدفع سيتم إضافة الرصيد تلقائياً",
                     chat_id=wait_msg.chat.id,

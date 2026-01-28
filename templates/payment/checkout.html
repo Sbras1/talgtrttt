@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إتمام الدفع</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --primary-light: #a29bfe;
+            --success: #00b894;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --bg: #0f0f1a;
+            --card: rgba(22, 33, 62, 0.95);
+            --text: #ffffff;
+            --muted: rgba(255,255,255,0.6);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .checkout-container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card);
+            border-radius: 25px;
+            padding: 30px;
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .checkout-header {
+            margin-bottom: 25px;
+        }
+        .checkout-header .icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--success), #55efc4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 30px rgba(0, 184, 148, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .checkout-header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .checkout-header p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+        
+        /* معلومات الطلب */
+        .order-info {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .order-row:last-child {
+            border-bottom: none;
+        }
+        .order-row .label {
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .order-row .value {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .order-row.total .value {
+            font-size: 22px;
+            color: var(--success);
+        }
+        
+        /* المؤقت */
+        .timer-section {
+            margin-bottom: 25px;
+        }
+        .timer-label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .timer-box {
+            background: rgba(108, 92, 231, 0.2);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 15px 20px;
+            min-width: 70px;
+        }
+        .timer-box .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--primary-light);
+            font-family: 'Courier New', monospace;
+        }
+        .timer-box .unit {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 5px;
+        }
+        .timer-expired {
+            color: var(--danger);
+            font-size: 16px;
+            padding: 20px;
+        }
+        
+        /* زر الدفع */
+        .pay-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, var(--success), #55efc4);
+            color: #1a1a2e;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .pay-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 184, 148, 0.5);
+        }
+        .pay-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .pay-btn.loading {
+            pointer-events: none;
+        }
+        
+        /* التنبيهات */
+        .notice {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(243, 156, 18, 0.1);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            border-radius: 12px;
+            font-size: 13px;
+            color: var(--warning);
+        }
+        .notice-icon {
+            margin-left: 8px;
+        }
+        
+        /* تحميل */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.2);
+            border-top-color: #1a1a2e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* زر الإلغاء */
+        .cancel-link {
+            display: block;
+            margin-top: 15px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .cancel-link:hover {
+            color: var(--danger);
+        }
+        
+        /* بطاقة الدفع */
+        .payment-method {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .payment-method img {
+            height: 25px;
+        }
+        .payment-method span {
+            font-size: 13px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="checkout-container">
+        <div class="checkout-header">
+            <div class="icon">💳</div>
+            <h1>إتمام الدفع</h1>
+            <p>أنت على وشك إتمام عملية الشحن</p>
+        </div>
+        
+        <div class="order-info">
+            <div class="order-row">
+                <span class="label">رقم الطلب</span>
+                <span class="value" style="direction: ltr; font-family: monospace;">{{ order_id[:15] }}...</span>
+            </div>
+            <div class="order-row">
+                <span class="label">الوصف</span>
+                <span class="value">شحن رصيد</span>
+            </div>
+            <div class="order-row total">
+                <span class="label">المبلغ</span>
+                <span class="value">{{ amount }} ر.س</span>
+            </div>
+        </div>
+        
+        <div class="timer-section">
+            <div class="timer-label">⏱️ الوقت المتبقي لإتمام الدفع</div>
+            <div class="timer-display" id="timerDisplay">
+                <div class="timer-box">
+                    <div class="number" id="minutes">10</div>
+                    <div class="unit">دقيقة</div>
+                </div>
+                <div class="timer-box">
+                    <div class="number" id="seconds">00</div>
+                    <div class="unit">ثانية</div>
+                </div>
+            </div>
+            <div class="timer-expired" id="timerExpired" style="display: none;">
+                ⚠️ انتهت صلاحية الرابط!<br>
+                <small>يرجى طلب رابط دفع جديد من البوت</small>
+            </div>
+        </div>
+        
+        <div class="payment-method">
+            <span>🔒 دفع آمن عبر</span>
+            <strong style="color: var(--success);">EdfaPay</strong>
+        </div>
+        
+        <button class="pay-btn" id="payBtn" onclick="proceedToPayment()">
+            💳 ادفع الآن - {{ amount }} ر.س
+        </button>
+        
+        <a href="https://t.me/{{ bot_username }}" class="cancel-link">❌ إلغاء والعودة للبوت</a>
+        
+        <div class="notice">
+            <span class="notice-icon">💡</span>
+            سيتم تحويلك لصفحة الدفع الآمنة. بعد إتمام الدفع سيُضاف الرصيد تلقائياً لحسابك.
+        </div>
+    </div>
+    
+    <script>
+        const expiresAt = {{ expires_at }} * 1000; // تحويل لـ milliseconds
+        const paymentUrl = "{{ payment_url }}";
+        let timerInterval;
+        
+        function updateTimer() {
+            const now = Date.now();
+            const remaining = expiresAt - now;
+            
+            if (remaining <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('timerDisplay').style.display = 'none';
+                document.getElementById('timerExpired').style.display = 'block';
+                document.getElementById('payBtn').disabled = true;
+                document.getElementById('payBtn').innerHTML = '⏱️ انتهت الصلاحية';
+                return;
+            }
+            
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            
+            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+            
+            // تغيير اللون عند اقتراب الوقت
+            if (remaining < 60000) {
+                document.querySelectorAll('.timer-box').forEach(box => {
+                    box.style.borderColor = '#e74c3c';
+                    box.querySelector('.number').style.color = '#e74c3c';
+                });
+            } else if (remaining < 180000) {
+                document.querySelectorAll('.timer-box').forEach(box => {
+                    box.style.borderColor = '#f39c12';
+                    box.querySelector('.number').style.color = '#f39c12';
+                });
+            }
+        }
+        
+        function proceedToPayment() {
+            const btn = document.getElementById('payBtn');
+            btn.innerHTML = '<div class="spinner"></div> جاري التحويل...';
+            btn.classList.add('loading');
+            
+            setTimeout(() => {
+                window.location.href = paymentUrl;
+            }, 500);
+        }
+        
+        // بدء المؤقت
+        updateTimer();
+        timerInterval = setInterval(updateTimer, 1000);
+    </script>
+</body>
+</html>

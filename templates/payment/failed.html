@@ -51,11 +51,11 @@
 </head>
 <body>
     <div class="container">
-        <div class="icon"></div>
-        <h1>فشل الدفع!</h1>
+        <div class="icon">❌</div>
+        <h1>{{ message or 'فشل الدفع!' }}</h1>
         <p>لم تتم عملية الدفع.</p>
         <div class="error-box">
-            <p class="error-text">{{ error_msg }}</p>
+            <p class="error-text">{{ reason or error_msg or 'حدث خطأ غير متوقع' }}</p>
         </div>
         <p>يمكنك المحاولة مرة أخرى.</p>
         <button class="btn" onclick="window.close(); setTimeout(function(){ location.href='about:blank'; }, 100);">إغلاق الصفحة</button>

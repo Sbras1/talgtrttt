@@ -1398,6 +1398,42 @@ def merchant_webhook(merchant_id):
             return jsonify({'status': 'ok', 'message': 'Telegram message ignored'}), 200
     return process_edfapay_callback(request, f"merchant_webhook/{merchant_id}")
 
+# ===================== صفحة الدفع الوسيطة مع المؤقت =====================
+@app.route('/payment/checkout/<order_id>')
+def payment_checkout(order_id):
+    """صفحة وسيطة للدفع مع مؤقت عد تنازلي"""
+    try:
+        # جلب بيانات الطلب من pending_payments
+        if db:
+            payment_doc = db.collection('pending_payments').document(order_id).get()
+            if payment_doc.exists:
+                payment_data = payment_doc.to_dict()
+                
+                # التحقق من صلاحية الرابط
+                expires_at = payment_data.get('expires_at', 0)
+                if time.time() > expires_at:
+                    return render_template('payment/failed.html', 
+                                         message='انتهت صلاحية رابط الدفع',
+                                         reason='يرجى طلب رابط دفع جديد من البوت')
+                
+                return render_template('payment/checkout.html',
+                    order_id=order_id,
+                    amount=payment_data.get('amount', 0),
+                    payment_url=payment_data.get('payment_url', ''),
+                    expires_at=int(expires_at),
+                    bot_username='your_bot_username'  # يمكن تغييره
+                )
+        
+        return render_template('payment/failed.html',
+                             message='طلب الدفع غير موجود',
+                             reason='تأكد من صحة الرابط أو اطلب رابط جديد')
+                             
+    except Exception as e:
+        print(f"❌ Error in checkout page: {e}")
+        return render_template('payment/failed.html',
+                             message='حدث خطأ',
+                             reason=str(e))
+
 # دعم كلا الصيغتين: edfapay_webhook و edfapay-webhook
 @app.route('/payment/edfapay_webhook', methods=['GET', 'POST'])
 @app.route('/payment/edfapay-webhook', methods=['GET', 'POST'])
