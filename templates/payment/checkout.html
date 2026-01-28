@@ -283,7 +283,8 @@
     </div>
     
     <script>
-        const expiresAt = {{ expires_at }} * 1000; // تحويل لـ milliseconds
+        // بيانات من الخادم
+        const expiresAt = parseInt("{{ expires_at }}") * 1000; // تحويل لـ milliseconds
         const paymentUrl = "{{ payment_url }}";
         let timerInterval;
         
