@@ -1,11 +1,50 @@
 {% extends "admin_base.html" %}
 {% block title %}لوحة التحكم - نظرة عامة{% endblock %}
 {% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
     .dashboard-cards-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
         gap: 20px;
+    }
+    .chart-section {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 20px;
+        border: 1px solid rgba(108, 92, 231, 0.2);
+        margin-bottom: 20px;
+    }
+    .chart-section h3 {
+        margin-bottom: 15px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .chart-container {
+        height: 280px;
+        position: relative;
+    }
+    .mini-charts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .mini-chart-card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 20px;
+        border: 1px solid rgba(108, 92, 231, 0.2);
+    }
+    .mini-chart-card h4 {
+        font-size: 14px;
+        margin-bottom: 15px;
+        color: var(--muted);
+    }
+    .mini-chart {
+        height: 150px;
     }
     @media (max-width: 480px) {
         .dashboard-cards-grid {
@@ -22,6 +61,9 @@
         }
         .keys-stats > div > div:first-child {
             font-size: 22px !important;
+        }
+        .mini-charts {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -75,7 +117,34 @@
         <div class="value" id="pendingInvoices">-</div>
         <div class="label">فواتير معلقة</div>
     </div>
+    <div class="stat-card">
+        <div class="icon">📋</div>
+        <div class="value" id="totalInvoices">-</div>
+        <div class="label">إجمالي الفواتير</div>
+    </div>
+    <div class="stat-card">
+        <div class="icon">📱</div>
+        <div class="value" id="verifiedPhones">-</div>
+        <div class="label">هواتف موثقة</div>
+    </div>
 </div>
+
+<!-- الرسوم البيانية -->
+<div class="mini-charts">
+    <div class="chart-section">
+        <h3>📊 الإيرادات (آخر 7 أيام)</h3>
+        <div class="chart-container">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-section">
+        <h3>📈 الطلبات والشحنات</h3>
+        <div class="chart-container">
+            <canvas id="ordersChart"></canvas>
+        </div>
+    </div>
+</div>
+
 <div class="dashboard-cards-grid">
     <div class="card">
         <div class="card-header">
@@ -191,6 +260,9 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+    let revenueChart = null;
+    let ordersChart = null;
+    
     async function loadAllStats() {
         try {
             const res = await fetch('/api/admin/dashboard_stats');
@@ -205,18 +277,119 @@
                 document.getElementById('totalRevenue').textContent = (s.total_revenue || 0).toFixed(2) + ' ر.س';
                 document.getElementById('activeKeys').textContent = s.active_keys || 0;
                 document.getElementById('pendingInvoices').textContent = s.pending_invoices || 0;
+                document.getElementById('totalInvoices').textContent = s.total_invoices || 0;
+                document.getElementById('verifiedPhones').textContent = s.verified_phones || 0;
                 document.getElementById('activeKeysCard').textContent = s.active_keys || 0;
                 document.getElementById('usedKeysCard').textContent = s.used_keys || 0;
                 document.getElementById('totalKeysCard').textContent = (s.active_keys || 0) + (s.used_keys || 0);
                 loadRecentOrders(s.recent_orders || []);
                 loadTopCartProducts(s.top_cart_products || []);
                 loadTopCustomers(s.users_list || []);
+                
+                // تحميل الرسوم البيانية
+                loadCharts(s.chart_data || {});
             }
         } catch (e) {
             console.error('Error loading stats:', e);
             showToast('فشل في تحميل الإحصائيات', 'error');
         }
     }
+    
+    function loadCharts(chartData) {
+        // رسم بياني الإيرادات
+        const revenueCtx = document.getElementById('revenueChart');
+        if (revenueChart) revenueChart.destroy();
+        
+        const days = chartData.days || ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+        const revenue = chartData.revenue || [0, 0, 0, 0, 0, 0, 0];
+        const charges = chartData.charges || [0, 0, 0, 0, 0, 0, 0];
+        const orders = chartData.orders || [0, 0, 0, 0, 0, 0, 0];
+        
+        revenueChart = new Chart(revenueCtx, {
+            type: 'line',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'الإيرادات',
+                    data: revenue,
+                    borderColor: '#6c5ce7',
+                    backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#6c5ce7'
+                }, {
+                    label: 'الشحنات',
+                    data: charges,
+                    borderColor: '#00b894',
+                    backgroundColor: 'rgba(0, 184, 148, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#00b894'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        position: 'bottom',
+                        labels: { color: '#b2bec3', padding: 15 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#b2bec3' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#b2bec3' }
+                    }
+                }
+            }
+        });
+        
+        // رسم بياني الطلبات
+        const ordersCtx = document.getElementById('ordersChart');
+        if (ordersChart) ordersChart.destroy();
+        
+        ordersChart = new Chart(ordersCtx, {
+            type: 'bar',
+            data: {
+                labels: days,
+                datasets: [{
+                    label: 'الطلبات',
+                    data: orders,
+                    backgroundColor: 'rgba(108, 92, 231, 0.7)',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#b2bec3', stepSize: 1 }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#b2bec3' }
+                    }
+                }
+            }
+        });
+    }
+    
     function loadRecentOrders(orders) {
         const tbody = document.getElementById('recentOrders');
         if (!orders.length) {

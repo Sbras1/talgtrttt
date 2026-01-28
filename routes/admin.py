@@ -662,6 +662,100 @@ def api_dashboard_stats():
                 stats['top_cart_products'] = top_cart_products
             except:
                 pass
+            
+            # إجمالي الفواتير
+            try:
+                all_invoices = list(db.collection('merchant_invoices').stream())
+                stats['total_invoices'] = len(all_invoices)
+            except:
+                stats['total_invoices'] = 0
+            
+            # عدد الهواتف الموثقة
+            try:
+                verified_count = 0
+                for u in users:
+                    u_data = u.to_dict()
+                    if u_data.get('verified_phone') or u_data.get('phone_verified'):
+                        verified_count += 1
+                stats['verified_phones'] = verified_count
+            except:
+                stats['verified_phones'] = 0
+            
+            # بيانات الرسوم البيانية (آخر 7 أيام)
+            try:
+                from datetime import datetime, timedelta
+                import pytz
+                
+                saudi_tz = pytz.timezone('Asia/Riyadh')
+                today = datetime.now(saudi_tz)
+                
+                days = []
+                revenue = [0] * 7
+                charges = [0] * 7
+                orders_count = [0] * 7
+                
+                # أسماء الأيام
+                day_names = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة']
+                for i in range(6, -1, -1):
+                    day = today - timedelta(days=i)
+                    day_name = day_names[day.weekday()]
+                    days.append(day_name)
+                
+                # الطلبات والإيرادات
+                for doc in all_orders:
+                    data = doc.to_dict()
+                    created = data.get('created_at')
+                    if created:
+                        try:
+                            if hasattr(created, 'timestamp'):
+                                order_date = datetime.fromtimestamp(created.timestamp(), tz=saudi_tz)
+                            else:
+                                order_date = datetime.fromisoformat(str(created).replace('Z', '+00:00')).astimezone(saudi_tz)
+                            
+                            days_diff = (today.date() - order_date.date()).days
+                            if 0 <= days_diff < 7:
+                                idx = 6 - days_diff
+                                revenue[idx] += data.get('price', 0)
+                                orders_count[idx] += 1
+                        except:
+                            pass
+                
+                # الشحنات
+                try:
+                    all_charges = list(db.collection('charges').stream())
+                    for doc in all_charges:
+                        data = doc.to_dict()
+                        created = data.get('created_at')
+                        if created:
+                            try:
+                                if hasattr(created, 'timestamp'):
+                                    charge_date = datetime.fromtimestamp(created.timestamp(), tz=saudi_tz)
+                                else:
+                                    charge_date = datetime.fromisoformat(str(created).replace('Z', '+00:00')).astimezone(saudi_tz)
+                                
+                                days_diff = (today.date() - charge_date.date()).days
+                                if 0 <= days_diff < 7:
+                                    idx = 6 - days_diff
+                                    charges[idx] += data.get('amount', 0)
+                            except:
+                                pass
+                except:
+                    pass
+                
+                stats['chart_data'] = {
+                    'days': days,
+                    'revenue': revenue,
+                    'charges': charges,
+                    'orders': orders_count
+                }
+            except Exception as e:
+                logger.error(f"Error generating chart data: {e}")
+                stats['chart_data'] = {
+                    'days': ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'],
+                    'revenue': [0, 0, 0, 0, 0, 0, 0],
+                    'charges': [0, 0, 0, 0, 0, 0, 0],
+                    'orders': [0, 0, 0, 0, 0, 0, 0]
+                }
         
         return jsonify({
             'status': 'success',
@@ -1980,7 +2074,9 @@ def api_get_customers():
                     'orders_count': orders_count,
                     'total_spent': user_spent,
                     'last_activity': last_activity.isoformat() if last_activity else None,
-                    'has_2fa': user_data.get('has_2fa', False)
+                    'has_2fa': user_data.get('has_2fa', False),
+                    'verified_phone': user_data.get('verified_phone', '') or user_data.get('phone', ''),
+                    'phone_verified': user_data.get('phone_verified', False)
                 })
         
         return jsonify({

@@ -25,6 +25,11 @@
         <div class="label">إجمالي العملاء</div>
     </div>
     <div class="stat-card">
+        <div class="icon">📱</div>
+        <div class="value" id="verifiedPhones">-</div>
+        <div class="label">هواتف موثقة</div>
+    </div>
+    <div class="stat-card">
         <div class="icon"></div>
         <div class="value" id="totalBalance">-</div>
         <div class="label">إجمالي الأرصدة</div>
@@ -42,7 +47,7 @@
 </div>
 <div class="card">
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <input type="text" id="searchInput" placeholder=" البحث بالاسم أو ID..." 
+        <input type="text" id="searchInput" placeholder="🔍 البحث بالاسم أو ID أو رقم الهاتف..." 
                style="flex: 1; min-width: 200px; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: white;">
         <select id="sortBy" style="padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: white;">
             <option value="balance_desc">الرصيد (الأعلى)</option>
@@ -63,10 +68,10 @@
             <thead>
                 <tr>
                     <th>العميل</th>
+                    <th>📱 الهاتف</th>
                     <th>الرصيد</th>
                     <th>الطلبات</th>
                     <th>إجمالي المشتريات</th>
-                    <th>آخر نشاط</th>
                     <th>الإجراءات</th>
                 </tr>
             </thead>
@@ -115,6 +120,10 @@
         document.getElementById('totalBalance').textContent = (stats.total_balance || 0).toFixed(2) + ' ر.س';
         document.getElementById('totalOrders').textContent = stats.total_orders || 0;
         document.getElementById('totalSpent').textContent = (stats.total_spent || 0).toFixed(2) + ' ر.س';
+        
+        // حساب عدد الهواتف الموثقة من قائمة العملاء
+        const verifiedCount = allCustomers.filter(c => c.verified_phone || c.phone_verified).length;
+        document.getElementById('verifiedPhones').textContent = verifiedCount;
     }
     function renderCustomers() {
         const tbody = document.getElementById('customersTable');
@@ -123,7 +132,8 @@
         let filtered = allCustomers.filter(c => {
             const name = (c.name || c.username || c.first_name || '').toLowerCase();
             const id = (c.user_id || c.id || '').toString();
-            return name.includes(search) || id.includes(search);
+            const phone = (c.verified_phone || c.phone || '').toString();
+            return name.includes(search) || id.includes(search) || phone.includes(search);
         });
         filtered.sort((a, b) => {
             switch (sortBy) {
@@ -145,7 +155,8 @@
             const balance = (c.balance || 0).toFixed(2);
             const orders = c.orders_count || 0;
             const spent = (c.total_spent || 0).toFixed(2);
-            const lastActivity = c.last_activity ? new Date(c.last_activity).toLocaleDateString('ar-SA') : '-';
+            const phone = c.verified_phone || c.phone || '';
+            const hasPhone = phone && phone.length > 0;
             return `
                 <tr>
                     <td>
@@ -160,13 +171,21 @@
                         </div>
                     </td>
                     <td>
+                        ${hasPhone ? `
+                            <span style="color: var(--success); font-size: 13px; direction: ltr; display: inline-block;">
+                                📱 ${phone}
+                            </span>
+                        ` : `
+                            <span style="color: var(--muted); font-size: 12px;">-</span>
+                        `}
+                    </td>
+                    <td>
                         <span style="color: ${parseFloat(balance) > 0 ? 'var(--success)' : 'var(--muted)'}; font-weight: 600;">
                             ${balance} ر.س
                         </span>
                     </td>
                     <td>${orders}</td>
                     <td>${spent} ر.س</td>
-                    <td style="font-size: 12px; color: var(--muted);">${lastActivity}</td>
                     <td>
                         <button class="btn btn-primary btn-sm" onclick="viewCustomer('${userId}')">
                              عرض
