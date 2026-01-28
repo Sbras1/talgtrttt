@@ -9,7 +9,10 @@
 import hashlib
 import time
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# توقيت السعودية UTC+3
+SAUDI_TZ = timezone(timedelta(hours=3))
 
 from config import EDFAPAY_MERCHANT_ID, EDFAPAY_PASSWORD, EDFAPAY_API_URL, SITE_URL
 
@@ -26,8 +29,8 @@ def create_payment_payload(order_id, amount, description, user_id, user_name='Cu
     """إنشاء بيانات طلب الدفع"""
     final_hash = calculate_hash(order_id, amount, description)
     
-    # حساب وقت انتهاء صفحة الدفع (10 دقائق)
-    expiry_time = datetime.now() + timedelta(minutes=10)
+    # حساب وقت انتهاء صفحة الدفع (10 دقائق) بتوقيت السعودية
+    expiry_time = datetime.now(SAUDI_TZ) + timedelta(minutes=10)
     expiry_str = expiry_time.strftime('%Y-%m-%d %H:%M:%S')
     
     return {
