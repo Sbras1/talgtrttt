@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: talgtrttt
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: TOKEN
+        sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        sync: false
+      - key: EDFAPAY_MERCHANT_ID
+        sync: false
+      - key: EDFAPAY_PASSWORD
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true
