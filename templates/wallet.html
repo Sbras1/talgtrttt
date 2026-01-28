@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %} محفظتي{% endblock %}
+{% block extra_css %}
+<style>
+    .balance-card {
+        background: linear-gradient(135deg, var(--card-bg) 0%, #2d2d44 100%);
+        border-radius: 24px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 25px;
+        border: 2px solid var(--border-color);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        position: relative;
+        overflow: hidden;
+        animation: pulse 3s infinite;
+    }
+    .balance-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(108, 92, 231, 0.1) 0%, transparent 70%);
+    }
+    .balance-label {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    .balance-amount {
+        font-size: 48px;
+        font-weight: bold;
+        background: linear-gradient(135deg, var(--gold), #f39c12);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 5px;
+    }
+    .balance-currency {
+        color: var(--text-muted);
+        font-size: 16px;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.01); }
+    }
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 15px 10px;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 20px;
+        font-weight: bold;
+        color: var(--primary-light);
+        margin-bottom: 5px;
+    }
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    .section-card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: var(--primary-light);
+    }
+    .section-title span {
+        font-size: 24px;
+    }
+    .form-label {
+        display: block;
+        color: #dfe6e9;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    .form-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        color: #fff;
+        font-size: 16px;
+        font-family: 'Tajawal', sans-serif;
+        transition: border-color 0.3s;
+    }
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary);
+    }
+    .form-hint {
+        color: #636e72;
+        font-size: 12px;
+        margin-top: 8px;
+        text-align: center;
+    }
+    .amount-buttons {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    .amount-btn {
+        padding: 10px;
+        border: 2px solid #333;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--primary-light);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: 'Tajawal', sans-serif;
+    }
+    .amount-btn:hover {
+        background: rgba(108, 92, 231, 0.2);
+        border-color: var(--primary);
+    }
+    .pay-btn {
+        width: 100%;
+        padding: 16px;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--green) 0%, #00cec9 100%);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: 'Tajawal', sans-serif;
+    }
+    .pay-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0, 184, 148, 0.4);
+    }
+    .pay-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .transaction-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+    }
+    .transaction-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+    .transaction-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .transaction-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+    .transaction-icon.income {
+        background: linear-gradient(135deg, rgba(0, 184, 148, 0.2), rgba(85, 239, 196, 0.1));
+        color: #55efc4;
+    }
+    .transaction-icon.expense {
+        background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(255, 118, 117, 0.1));
+        color: #ff7675;
+    }
+    .transaction-details h4 {
+        font-size: 15px;
+        margin-bottom: 4px;
+    }
+    .transaction-details p {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    .transaction-amount {
+        font-weight: bold;
+        font-size: 16px;
+    }
+    .transaction-amount.income {
+        color: #55efc4;
+    }
+    .transaction-amount.expense {
+        color: #ff7675;
+    }
+    .empty-transactions {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+    .empty-transactions .icon {
+        font-size: 50px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+{% block content %}
+    <div class="container-sm">
+        <div class="balance-card">
+            <div class="balance-label"> رصيدك الحالي</div>
+            <div class="balance-amount" id="currentBalance">{{ balance }}</div>
+            <div class="balance-currency">ريال سعودي</div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_charges }}</div>
+                <div class="stat-label">إجمالي الشحن</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ charges_count }}</div>
+                <div class="stat-label">عدد الشحنات</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ purchases_count }}</div>
+                <div class="stat-label">المشتريات</div>
+            </div>
+        </div>
+        <div class="section-card">
+            <div class="section-title">
+                <span></span>
+                شحن رصيدك
+            </div>
+            <form id="chargeForm" onsubmit="processPayment(event)">
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label"> رقم الجوال</label>
+                    <div style="display: flex; gap: 10px; direction: ltr;">
+                        <select id="countryCode" class="form-input" style="width: 110px; padding: 12px 8px;">
+                            <option value="966">🇸🇦 +966</option>
+                            <option value="971">🇦🇪 +971</option>
+                            <option value="965">🇰🇼 +965</option>
+                            <option value="973">🇧🇭 +973</option>
+                            <option value="974">🇶🇦 +974</option>
+                            <option value="968">🇴🇲 +968</option>
+                            <option value="962">🇯🇴 +962</option>
+                            <option value="20">🇪🇬 +20</option>
+                            <option value="212">🇲🇦 +212</option>
+                            <option value="216">🇹🇳 +216</option>
+                            <option value="213">🇩🇿 +213</option>
+                            <option value="964">🇮🇶 +964</option>
+                            <option value="963">🇸🇾 +963</option>
+                            <option value="961">🇱🇧 +961</option>
+                            <option value="967">🇾🇪 +967</option>
+                            <option value="90">🇹🇷 +90</option>
+                        </select>
+                        <input type="tel" id="phoneNumber" placeholder="5xxxxxxxx" required maxlength="10"
+                               class="form-input" style="flex: 1; text-align: center;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label"> المبلغ المراد شحنه</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="number" id="chargeAmount" placeholder="100" min="10" max="5000" required
+                               class="form-input" style="flex: 1; text-align: center; font-size: 18px;">
+                        <span style="color: #b2bec3; font-size: 16px;">ريال</span>
+                    </div>
+                    <p class="form-hint">الحد الأدنى: 10 ريال | الحد الأقصى: 5000 ريال</p>
+                </div>
+                <div class="amount-buttons">
+                    <button type="button" class="amount-btn" onclick="setAmount(25)">25</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(50)">50</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(100)">100</button>
+                    <button type="button" class="amount-btn" onclick="setAmount(200)">200</button>
+                </div>
+                <button type="submit" id="payBtn" class="pay-btn">
+                     إتمام الدفع
+                </button>
+            </form>
+            <p style="text-align: center; color: #666; font-size: 12px; margin-top: 15px;">
+                 دفع آمن عبر <span style="color: #00cec9;">EdfaPay</span>
+            </p>
+        </div>
+        <div class="section-card">
+            <div class="section-title">
+                <span>📜</span>
+                سجل المعاملات
+            </div>
+            {% if transactions %}
+                {% for t in transactions %}
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="transaction-icon {{ t.type }}">
+                            {% if t.type == 'income' %}{% else %}{% endif %}
+                        </div>
+                        <div class="transaction-details">
+                            <h4>{{ t.title }}</h4>
+                            <p>{{ t.date }}</p>
+                        </div>
+                    </div>
+                    <div class="transaction-amount {{ t.type }}">
+                        {% if t.type == 'income' %}+{% else %}-{% endif %}{{ t.amount }} ر.س
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-transactions">
+                    <div class="icon"></div>
+                    <p>لا توجد معاملات بعد</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    const userId = '{{ user_id }}';
+    function setAmount(amount) {
+        document.getElementById('chargeAmount').value = amount;
+    }
+    async function processPayment(event) {
+        event.preventDefault();
+        const phone = document.getElementById('phoneNumber').value.trim();
+        const countryCode = document.getElementById('countryCode').value;
+        const amount = document.getElementById('chargeAmount').value;
+        const btn = document.getElementById('payBtn');
+        if(!phone || phone.length < 7) {
+            showToast(' الرجاء إدخال رقم جوال صحيح', 'error');
+            return;
+        }
+        if(!amount || amount < 10 || amount > 5000) {
+            showToast(' المبلغ يجب أن يكون بين 10 و 5000 ريال', 'error');
+            return;
+        }
+        let cleanPhone = phone;
+        if(cleanPhone.startsWith('0')) {
+            cleanPhone = cleanPhone.substring(1);
+        }
+        const fullPhone = countryCode + cleanPhone;
+        btn.disabled = true;
+        btn.textContent = '⏳ جاري التحويل...';
+        try {
+            const response = await fetch('/wallet/pay', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    phone: fullPhone,
+                    amount: parseFloat(amount)
+                })
+            });
+            const result = await response.json();
+            if(result.success && result.payment_url) {
+                window.location.href = result.payment_url;
+            } else {
+                showToast(' ' + (result.message || 'حدث خطأ'), 'error');
+                btn.disabled = false;
+                btn.textContent = ' إتمام الدفع';
+            }
+        } catch(error) {
+            showToast(' حدث خطأ في الاتصال', 'error');
+            btn.disabled = false;
+            btn.textContent = ' إتمام الدفع';
+        }
+    }
+    window.categoriesData = [];
+</script>
+{% endblock %}
