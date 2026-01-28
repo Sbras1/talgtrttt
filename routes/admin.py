@@ -479,6 +479,14 @@ def admin_charge_keys():
         return redirect('/dashboard')
     return render_template('admin_charge_keys.html', active_page='charge_keys')
 
+@admin_bp.route('/admin/advanced')
+def admin_advanced_page():
+    """لوحة التحكم المتقدمة"""
+    if not session.get('is_admin'):
+        return redirect('/dashboard')
+    return render_template('admin_advanced.html', active_page='advanced')
+
+
 # ===================== API إحصائيات لوحة التحكم =====================
 
 @admin_bp.route('/api/admin/dashboard_stats')
@@ -662,6 +670,231 @@ def api_dashboard_stats():
         
     except Exception as e:
         print(f"❌ خطأ في جلب إحصائيات لوحة التحكم: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ===================== API لوحة التحكم المتقدمة =====================
+
+@admin_bp.route('/api/admin/advanced_stats')
+def api_advanced_stats():
+    """إحصائيات متقدمة للوحة التحكم الجديدة"""
+    if not session.get('is_admin'):
+        return jsonify({'status': 'error', 'message': 'غير مصرح'}), 403
+    
+    try:
+        stats = {
+            'total_customers': 0,
+            'verified_phones': 0,
+            'active_customers': 0,
+            'total_invoices': 0,
+            'total_revenue': 0,
+            'weekly_revenue': [0, 0, 0, 0, 0, 0, 0]
+        }
+        
+        if db:
+            # العملاء
+            try:
+                users = list(db.collection('users').stream())
+                stats['total_customers'] = len(users)
+                
+                verified_count = 0
+                active_count = 0
+                for u in users:
+                    u_data = u.to_dict()
+                    if u_data.get('verified_phone') or u_data.get('phone_verified'):
+                        verified_count += 1
+                    if u_data.get('balance', 0) > 0 or u_data.get('orders_count', 0) > 0:
+                        active_count += 1
+                
+                stats['verified_phones'] = verified_count
+                stats['active_customers'] = active_count
+            except Exception as e:
+                logger.error(f"Error getting users: {e}")
+            
+            # الفواتير
+            try:
+                invoices = list(db.collection('merchant_invoices').stream())
+                stats['total_invoices'] = len(invoices)
+            except:
+                pass
+            
+            # الإيرادات
+            try:
+                orders = list(db.collection('orders').stream())
+                total_revenue = sum([o.to_dict().get('price', 0) for o in orders])
+                stats['total_revenue'] = total_revenue
+            except:
+                pass
+            
+            # الإيرادات الأسبوعية (محاكاة)
+            try:
+                from datetime import datetime, timedelta
+                weekly = [0] * 7
+                today = datetime.now()
+                
+                orders_ref = db.collection('orders').order_by('created_at', direction=firestore.Query.DESCENDING).limit(200)
+                for doc in orders_ref.stream():
+                    data = doc.to_dict()
+                    created = data.get('created_at')
+                    if created:
+                        try:
+                            if hasattr(created, 'timestamp'):
+                                order_date = datetime.fromtimestamp(created.timestamp())
+                            else:
+                                order_date = datetime.fromisoformat(str(created).replace('Z', '+00:00'))
+                            
+                            days_diff = (today - order_date).days
+                            if 0 <= days_diff < 7:
+                                weekly[6 - days_diff] += data.get('price', 0)
+                        except:
+                            pass
+                
+                stats['weekly_revenue'] = weekly
+            except Exception as e:
+                logger.error(f"Error getting weekly revenue: {e}")
+        
+        return jsonify({'status': 'success', 'stats': stats})
+        
+    except Exception as e:
+        logger.error(f"Error in advanced_stats: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_bp.route('/api/admin/get_customers_advanced')
+def api_get_customers_advanced():
+    """جلب العملاء مع معلومات متقدمة"""
+    if not session.get('is_admin'):
+        return jsonify({'status': 'error', 'message': 'غير مصرح'}), 403
+    
+    try:
+        customers = []
+        
+        if db:
+            users = list(db.collection('users').stream())
+            
+            for u in users:
+                u_data = u.to_dict()
+                user_id = u.id
+                
+                # عدد الفواتير
+                invoices_count = 0
+                try:
+                    invs = list(query_where(db.collection('merchant_invoices'), 'merchant_id', '==', user_id).stream())
+                    invoices_count = len(invs)
+                except:
+                    pass
+                
+                # رقم الجوال الموثق
+                verified_phone = u_data.get('verified_phone', '')
+                if not verified_phone and u_data.get('phone_verified'):
+                    verified_phone = u_data.get('phone', '')
+                
+                customers.append({
+                    'user_id': user_id,
+                    'name': u_data.get('name', u_data.get('telegram_name', 'مستخدم')),
+                    'username': u_data.get('username', ''),
+                    'balance': u_data.get('balance', 0),
+                    'verified_phone': verified_phone,
+                    'invoices_count': invoices_count,
+                    'orders_count': u_data.get('orders_count', 0),
+                    'last_activity': str(u_data.get('last_seen', u_data.get('created_at', '')))
+                })
+            
+            # ترتيب حسب الرصيد
+            customers.sort(key=lambda x: x.get('balance', 0), reverse=True)
+        
+        return jsonify({'status': 'success', 'customers': customers})
+        
+    except Exception as e:
+        logger.error(f"Error in get_customers_advanced: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@admin_bp.route('/api/admin/get_customer_full')
+def api_get_customer_full():
+    """جلب بيانات عميل كاملة"""
+    if not session.get('is_admin'):
+        return jsonify({'status': 'error', 'message': 'غير مصرح'}), 403
+    
+    user_id = request.args.get('user_id', '')
+    if not user_id:
+        return jsonify({'status': 'error', 'message': 'معرف المستخدم مطلوب'})
+    
+    try:
+        customer = {}
+        
+        if db:
+            # بيانات المستخدم
+            user_doc = db.collection('users').document(user_id).get()
+            if user_doc.exists:
+                u_data = user_doc.to_dict()
+                customer = {
+                    'user_id': user_id,
+                    'name': u_data.get('name', 'مستخدم'),
+                    'username': u_data.get('username', ''),
+                    'balance': u_data.get('balance', 0),
+                    'verified_phone': u_data.get('verified_phone', u_data.get('phone', '')),
+                    'phone_verified': u_data.get('phone_verified', False)
+                }
+            
+            # الشحنات
+            charges = []
+            try:
+                charges_ref = query_where(db.collection('charge_history'), 'user_id', '==', user_id)
+                for doc in charges_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(20).stream():
+                    c = doc.to_dict()
+                    created = c.get('created_at')
+                    if hasattr(created, 'isoformat'):
+                        created = created.isoformat()
+                    charges.append({
+                        'amount': c.get('amount', 0),
+                        'method': c.get('method', 'unknown'),
+                        'created_at': str(created)
+                    })
+            except:
+                pass
+            customer['charges'] = charges
+            
+            # المشتريات
+            purchases = []
+            try:
+                purchases_ref = query_where(db.collection('purchases'), 'buyer_id', '==', user_id)
+                for doc in purchases_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(20).stream():
+                    p = doc.to_dict()
+                    created = p.get('created_at')
+                    if hasattr(created, 'isoformat'):
+                        created = created.isoformat()
+                    purchases.append({
+                        'product_name': p.get('product_name', p.get('item_name', 'منتج')),
+                        'price': p.get('price', 0),
+                        'created_at': str(created)
+                    })
+            except:
+                pass
+            customer['purchases'] = purchases
+            customer['purchases_count'] = len(purchases)
+            customer['total_spent'] = sum([p.get('price', 0) for p in purchases])
+            
+            # الفواتير
+            invoices = []
+            try:
+                invs_ref = query_where(db.collection('merchant_invoices'), 'merchant_id', '==', user_id)
+                for doc in invs_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(20).stream():
+                    inv = doc.to_dict()
+                    created = inv.get('created_at')
+                    if hasattr(created, 'isoformat'):
+                        created = created.isoformat()
+                    invoices.append({
+                        'amount': inv.get('amount', 0),
+                        'status': inv.get('status', 'pending'),
+                        'created_at': str(created)
+                    })
+            except:
+                pass
+            customer['invoices'] = invoices
+            customer['invoices_count'] = len(invoices)
+        
+        return jsonify({'status': 'success', 'customer': customer})
+        
+    except Exception as e:
+        logger.error(f"Error in get_customer_full: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ===================== API الفواتير =====================
