@@ -42,9 +42,8 @@ from firebase_utils import (
     query_where, get_balance, add_balance, deduct_balance,
     get_products, get_product_by_id, add_product, update_product, mark_product_sold, delete_product,
     get_categories, add_category, update_category, delete_category, get_category_by_id,
-    get_charge_key, use_charge_key, create_charge_key,
     get_user_cart, save_user_cart, clear_user_cart, get_all_carts,
-    get_all_products_for_store, get_sold_products, get_all_users, get_all_charge_keys,
+    get_all_products_for_store, get_sold_products, get_all_users,
     get_active_orders, get_products_by_category, count_products_in_category,
     save_pending_payment, get_pending_payment, update_pending_payment, add_purchase_history,
     get_header_settings, get_collection_data, get_collection_list,
@@ -1019,67 +1018,6 @@ def get_balance_api():
     
     balance = get_balance(user_id)
     return {'balance': balance}
-
-@app.route('/charge_balance', methods=['POST'])
-@limiter.limit("5 per minute")  # 🔒 Rate Limiting: منع تخمين مفاتيح الشحن
-def charge_balance_api():
-    """شحن الرصيد باستخدام كود الشحن"""
-    data = request.json
-    key_code = data.get('charge_key', '').strip()
-    
-    # ===== التحقق الآمن من هوية المستخدم =====
-    if not session.get('user_id'):
-        return jsonify({'success': False, 'message': 'يجب تسجيل الدخول أولاً!'})
-    
-    user_id = str(session.get('user_id'))
-    
-    if not key_code:
-        return jsonify({'success': False, 'message': 'الرجاء إدخال كود الشحن'})
-    
-    # البحث عن الكود في Firebase مباشرة
-    key_data = get_charge_key(key_code)
-    
-    # التحقق من وجود الكود
-    if not key_data:
-        return jsonify({'success': False, 'message': 'كود الشحن غير صحيح أو غير موجود'})
-    
-    # التحقق من أن الكود لم يستخدم
-    if key_data.get('used', False):
-        return jsonify({'success': False, 'message': 'هذا الكود تم استخدامه مسبقاً'})
-    
-    # شحن الرصيد
-    amount = key_data.get('amount', 0)
-    new_balance = add_balance(user_id, amount)
-    
-    # تحديث الكود كمستخدم
-    use_charge_key(key_code, user_id)
-    
-    # حفظ سجل الشحنة
-    if db:
-        try:
-            from datetime import datetime
-            import time as time_module
-            db.collection('charge_history').add({
-                'user_id': user_id,
-                'amount': amount,
-                'key_code': key_code,
-                'method': 'key',
-                'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
-                'timestamp': firestore.SERVER_TIMESTAMP,
-                'type': 'charge'
-            })
-            print(f"✅ تم تسجيل شحنة الكود في charge_history: {amount} ريال للمستخدم {user_id}")
-            
-            # إشعار المالك بالشحن
-            notify_new_charge(user_id, amount, method='key')
-        except Exception as e:
-            print(f"خطأ في حفظ سجل الشحن: {e}")
-    
-    return jsonify({
-        'success': True, 
-        'message': f'تم شحن {amount} ريال بنجاح!',
-        'new_balance': new_balance
-    })
 
 @app.route('/sell', methods=['POST'])
 def sell_item():

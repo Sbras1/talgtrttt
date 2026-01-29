@@ -39,9 +39,8 @@ except ImportError:
 from firebase_utils import (
     get_balance, add_balance, deduct_balance,
     get_categories, get_products, get_product_by_id,
-    get_charge_key, use_charge_key, create_charge_key,
     save_pending_payment, get_pending_payment,
-    get_all_products_for_store, get_all_charge_keys
+    get_all_products_for_store
 )
 
 from utils import generate_code
@@ -236,12 +235,10 @@ def send_welcome(message):
         btn_site = types.InlineKeyboardButton("رابط الموقع", url=SITE_URL)
         btn_myid = types.InlineKeyboardButton("آيدي", callback_data="my_id")
         btn_acc = types.InlineKeyboardButton("المحاسبة", callback_data="acc_main")
-        btn_code = types.InlineKeyboardButton("شحن كود", callback_data="recharge_code")
         btn_invoice = types.InlineKeyboardButton("إنشاء فاتورة", callback_data="create_invoice")
         btn_support = types.InlineKeyboardButton("📞 الدعم الفني", callback_data="support_contact")
         markup.add(btn_site, btn_myid)
-        markup.add(btn_acc)
-        markup.add(btn_code, btn_invoice)
+        markup.add(btn_acc, btn_invoice)
         markup.add(btn_support)
         
         # إرسال الرسالة
@@ -328,12 +325,10 @@ def handle_back_to_main(call):
         btn_site = types.InlineKeyboardButton("رابط الموقع", url=SITE_URL)
         btn_myid = types.InlineKeyboardButton("آيدي", callback_data="my_id")
         btn_acc = types.InlineKeyboardButton("المحاسبة", callback_data="acc_main")
-        btn_code = types.InlineKeyboardButton("شحن كود", callback_data="recharge_code")
         btn_invoice = types.InlineKeyboardButton("إنشاء فاتورة", callback_data="create_invoice")
         btn_support = types.InlineKeyboardButton("📞 الدعم الفني", callback_data="support_contact")
         markup.add(btn_site, btn_myid)
-        markup.add(btn_acc)
-        markup.add(btn_code, btn_invoice)
+        markup.add(btn_acc, btn_invoice)
         markup.add(btn_support)
         
         bot.edit_message_text(
@@ -871,36 +866,6 @@ def generate_keys(message):
     except ValueError:
         bot.reply_to(message, "❌ الرجاء إدخال أرقام صحيحة!")
 
-# أمر شحن الرصيد (يفتح خيارات الشحن)
-@bot.message_handler(commands=['شحن'])
-def recharge_balance(message):
-    """أمر شحن الرصيد - يطلب كود الشحن مباشرة"""
-    try:
-        user_id = str(message.from_user.id)
-        
-        # تعيين حالة المستخدم لانتظار الكود مباشرة
-        user_states[user_id] = {
-            'state': 'waiting_recharge_code',
-            'created_at': time.time()
-        }
-        
-        # إنشاء زر إلغاء
-        markup = types.InlineKeyboardMarkup()
-        btn_cancel = types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_recharge")
-        markup.add(btn_cancel)
-        
-        bot.send_message(
-            message.chat.id,
-            "🔑 *شحن الرصيد بكود*\n\n"
-            "📝 أرسل كود الشحن الخاص بك:\n\n"
-            "📌 *مثال:* `KEY-XXXXX-XXXXX`\n\n"
-            "💡 للشحن الإلكتروني، استخدم الموقع",
-            reply_markup=markup,
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        bot.reply_to(message, f"❌ حدث خطأ: {str(e)}")
-
 # معالج زر شحن إلكتروني
 @bot.callback_query_handler(func=lambda call: call.data == "recharge_payment")
 def handle_recharge_payment(call):
@@ -946,37 +911,6 @@ def handle_recharge_payment(call):
         print(f"❌ خطأ في handle_recharge_payment: {e}")
 
 # معالج زر شحن بكود
-@bot.callback_query_handler(func=lambda call: call.data == "recharge_code")
-def handle_recharge_code(call):
-    """طلب إدخال كود الشحن"""
-    try:
-        user_id = str(call.from_user.id)
-        
-        # تعيين حالة المستخدم لانتظار الكود
-        user_states[user_id] = {
-            'state': 'waiting_recharge_code',
-            'created_at': time.time()
-        }
-        
-        bot.answer_callback_query(call.id)
-        
-        # إنشاء زر إلغاء
-        markup = types.InlineKeyboardMarkup()
-        btn_cancel = types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_recharge")
-        markup.add(btn_cancel)
-        
-        bot.send_message(
-            call.message.chat.id,
-            "🔑 *شحن بكود*\n\n"
-            "📝 أرسل كود الشحن الخاص بك:\n\n"
-            "📌 *مثال:* `KEY-XXXXX-XXXXX`",
-            reply_markup=markup,
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        bot.answer_callback_query(call.id, "حدث خطأ!")
-        print(f"❌ خطأ في handle_recharge_code: {e}")
-
 # معالج زر إلغاء الشحن
 @bot.callback_query_handler(func=lambda call: call.data == "cancel_recharge")
 def handle_cancel_recharge(call):
@@ -1204,78 +1138,6 @@ def handle_user_state_message(message):
                     message_id=wait_msg.message_id,
                     parse_mode="Markdown"
                 )
-        
-        # === حالة انتظار كود الشحن ===
-        elif state == 'waiting_recharge_code':
-            key_code = message.text.strip()
-            user_name = message.from_user.first_name
-            
-            # إزالة حالة المستخدم
-            del user_states[user_id]
-            
-            # التحقق من وجود المفتاح
-            # جلب بيانات المفتاح من Firebase
-            key_data = get_charge_key(key_code)
-            
-            if not key_data:
-                return bot.reply_to(message, "❌ المفتاح غير صحيح أو منتهي الصلاحية!")
-            
-            # التحقق من استخدام المفتاح
-            if key_data.get('used', False):
-                return bot.reply_to(message, 
-                    f"❌ هذا المفتاح تم استخدامه بالفعل!\n\n"
-                    f"👤 استخدمه: {key_data.get('used_by', 'مستخدم')}")
-            
-            # شحن الرصيد
-            amount = key_data.get('amount', 0)
-            add_balance(user_id, amount)
-            
-            # ✅ تسجيل الشحنة في charge_history للتجميد
-            try:
-                db.collection('charge_history').add({
-                    'user_id': str(user_id),
-                    'amount': float(amount),
-                    'method': 'telegram_key',
-                    'key_code': key_code,
-                    'timestamp': firestore.SERVER_TIMESTAMP
-                })
-                print(f"✅ تم تسجيل شحنة التليجرام في charge_history: {amount} ريال للمستخدم {user_id}")
-                
-                # إشعار المالك بالشحن
-                notify_new_charge(user_id, amount, method='telegram_key', username=user_name)
-            except Exception as e:
-                print(f"⚠️ خطأ في تسجيل charge_history: {e}")
-            
-            # تحديث حالة المفتاح في Firebase
-            use_charge_key(key_code, user_name)
-            
-            # إرسال رسالة نجاح
-            bot.reply_to(message,
-                f"✅ *تم شحن رصيدك بنجاح!*\n\n"
-                f"💰 المبلغ المضاف: {amount} ريال\n"
-                f"💵 رصيدك الحالي: {get_balance(user_id)} ريال\n\n"
-                f"⏳ *ملاحظة:* المبلغ سيكون متاحاً للسحب العادي (5.5%) بعد 72 ساعة.\n"
-                f"⚡ يمكنك السحب الفوري الآن برسوم 8%.\n"
-                f"🚀 التحويل خلال 1-5 ساعات بعد الموافقة!\n\n"
-                f"🎉 استمتع بالتسوق!",
-                parse_mode="Markdown"
-            )
-            
-            # إرسال إشعار لقناة التفاعلات
-            send_activity_notification('charge', user_id, user_name, {'amount': amount})
-            
-            # إشعار المالك
-            try:
-                bot.send_message(ADMIN_ID,
-                    f"🔔 *تم استخدام مفتاح شحن*\n\n"
-                    f"👤 المستخدم: {user_name}\n"
-                    f"🆔 الآيدي: {user_id}\n"
-                    f"💰 المبلغ: {amount} ريال\n"
-                    f"🔑 المفتاح: `{key_code}`",
-                    parse_mode="Markdown"
-                )
-            except:
-                pass
         
         # === حالة انتظار مبلغ الفاتورة ===
         elif state == 'waiting_invoice_amount':
