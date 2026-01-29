@@ -937,249 +937,64 @@ def favicon():
     """أيقونة الموقع"""
     return '', 204
 
-# ==================== نظام تسجيل الدخول بالآيدي ====================
-
-# تخزين أكواد OTP المؤقتة
-otp_storage = {}
+# ==================== الصفحة الرئيسية ====================
 
 @app.route('/')
 def index():
-    """الصفحة الرئيسية - توجيه لتسجيل الدخول أو لوحة التحكم"""
-    if session.get('user_id'):
-        return redirect('/dashboard')
-    return render_template('login.html')
-
-@app.route('/api/request-otp', methods=['POST'])
-@limiter.limit("5 per minute")
-def request_otp():
-    """طلب كود OTP للتحقق"""
-    import random
-    from datetime import datetime, timedelta
-    
-    data = request.json
-    method = data.get('method', 'id')
-    value = data.get('value', '').strip()
-    
-    if not value:
-        return jsonify({'success': False, 'message': 'الرجاء إدخال البيانات'})
-    
-    user_id = None
-    user_doc_data = None
-    
-    if method == 'id':
-        # البحث بالآيدي
-        try:
-            user_doc = db.collection('users').document(str(value)).get()
-            if user_doc.exists:
-                user_id = str(value)
-                user_doc_data = user_doc.to_dict()
-            else:
-                return jsonify({'success': False, 'message': 'هذا الآيدي غير مسجل'})
-        except Exception as e:
-            return jsonify({'success': False, 'message': 'حدث خطأ في البحث'})
-    
-    elif method == 'phone':
-        # البحث برقم الجوال
-        try:
-            # تنسيق الرقم
-            phone = value.replace('+', '').replace(' ', '')
-            if phone.startswith('0'):
-                phone = '966' + phone[1:]
-            elif not phone.startswith('966'):
-                phone = '966' + phone
-            
-            # البحث في المستخدمين
-            users_ref = db.collection('users').where('phone', '==', phone).limit(1).stream()
-            found_user = None
-            for doc in users_ref:
-                found_user = doc
-                break
-            
-            if not found_user:
-                # محاولة البحث بصيغ مختلفة
-                users_ref = db.collection('users').where('phone', '==', value).limit(1).stream()
-                for doc in users_ref:
-                    found_user = doc
-                    break
-            
-            if found_user:
-                user_id = found_user.id
-                user_doc_data = found_user.to_dict()
-            else:
-                return jsonify({'success': False, 'message': 'هذا الرقم غير مسجل أو غير موثق'})
-        except Exception as e:
-            print(f"خطأ في البحث بالرقم: {e}")
-            return jsonify({'success': False, 'message': 'حدث خطأ في البحث'})
-    
-    if not user_id:
-        return jsonify({'success': False, 'message': 'لم يتم العثور على المستخدم'})
-    
-    # توليد كود OTP (6 أرقام)
-    otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-    
-    # حفظ الكود مع وقت انتهاء (5 دقائق)
-    otp_storage[user_id] = {
-        'otp': otp,
-        'expires': datetime.now() + timedelta(minutes=5),
-        'user_data': user_doc_data
-    }
-    
-    # إرسال الكود عبر البوت
-    try:
-        from telegram import send_otp_message
-        send_otp_message(user_id, otp)
-        print(f"✅ تم إرسال OTP للمستخدم {user_id}")
-    except Exception as e:
-        print(f"⚠️ خطأ في إرسال OTP: {e}")
-        # نستمر حتى لو فشل الإرسال (للاختبار)
-    
-    return jsonify({'success': True, 'message': 'تم إرسال كود التحقق'})
-
-@app.route('/api/verify-otp', methods=['POST'])
-@limiter.limit("10 per minute")
-def verify_otp():
-    """التحقق من كود OTP"""
-    from datetime import datetime
-    
-    data = request.json
-    method = data.get('method', 'id')
-    value = data.get('value', '').strip()
-    otp = data.get('otp', '').strip()
-    
-    if not otp or len(otp) != 6:
-        return jsonify({'success': False, 'message': 'كود غير صحيح'})
-    
-    # الحصول على user_id
-    user_id = None
-    if method == 'id':
-        user_id = str(value)
-    elif method == 'phone':
-        # البحث بالرقم
-        phone = value.replace('+', '').replace(' ', '')
-        if phone.startswith('0'):
-            phone = '966' + phone[1:]
-        elif not phone.startswith('966'):
-            phone = '966' + phone
-        
-        try:
-            users_ref = db.collection('users').where('phone', '==', phone).limit(1).stream()
-            for doc in users_ref:
-                user_id = doc.id
-                break
-            
-            if not user_id:
-                users_ref = db.collection('users').where('phone', '==', value).limit(1).stream()
-                for doc in users_ref:
-                    user_id = doc.id
-                    break
-        except:
-            pass
-    
-    if not user_id or user_id not in otp_storage:
-        return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، حاول مرة أخرى'})
-    
-    stored = otp_storage[user_id]
-    
-    # التحقق من انتهاء الصلاحية
-    if datetime.now() > stored['expires']:
-        del otp_storage[user_id]
-        return jsonify({'success': False, 'message': 'انتهت صلاحية الكود'})
-    
-    # التحقق من الكود
-    if otp != stored['otp']:
-        return jsonify({'success': False, 'message': 'كود خاطئ'})
-    
-    # تسجيل الدخول
-    user_data = stored.get('user_data', {})
-    session['user_id'] = user_id
-    session['user_name'] = user_data.get('first_name', user_data.get('username', 'مستخدم'))
-    session['profile_photo'] = user_data.get('profile_photo', '')
-    session['is_logged_in'] = True
-    
-    # حذف الكود
-    del otp_storage[user_id]
-    
-    return jsonify({'success': True, 'message': 'تم تسجيل الدخول بنجاح'})
-
-@app.route('/dashboard')
-def user_dashboard():
-    """لوحة تحكم المستخدم"""
-    if not session.get('user_id'):
-        return redirect('/')
-    
-    user_id = str(session.get('user_id'))
-    user_name = session.get('user_name', 'مستخدم')
-    profile_photo = session.get('profile_photo', '')
-    
-    # جلب الفواتير
-    invoices = []
-    paid_count = 0
-    pending_count = 0
-    expired_count = 0
-    
-    try:
-        from datetime import datetime
-        
-        # جلب الفواتير من pending_payments
-        invoices_ref = db.collection('pending_payments').where('user_id', '==', user_id).stream()
-        
-        for doc in invoices_ref:
-            inv_data = doc.to_dict()
-            
-            # تحديد الحالة
-            status = inv_data.get('status', 'pending')
-            
-            # التحقق من انتهاء الصلاحية
-            if status == 'pending':
-                expires_at = inv_data.get('expires_at')
-                if expires_at:
-                    if isinstance(expires_at, str):
-                        try:
-                            exp_time = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-                            if datetime.now(exp_time.tzinfo) > exp_time:
-                                status = 'expired'
-                                # تحديث الحالة في Firebase
-                                db.collection('pending_payments').document(doc.id).update({'status': 'expired'})
-                        except:
-                            pass
-            
-            invoices.append({
-                'id': doc.id,
-                'amount': inv_data.get('amount', 0),
-                'status': status,
-                'date': inv_data.get('created_at', inv_data.get('date', '-')),
-                'description': inv_data.get('description', inv_data.get('type', ''))
-            })
-            
-            if status == 'paid' or status == 'success':
-                paid_count += 1
-            elif status == 'pending':
-                pending_count += 1
-            elif status == 'expired':
-                expired_count += 1
-        
-        # ترتيب الفواتير (الأحدث أولاً)
-        invoices.sort(key=lambda x: x.get('date', ''), reverse=True)
-        
-    except Exception as e:
-        print(f"خطأ في جلب الفواتير: {e}")
-    
-    return render_template('dashboard.html',
-        user_id=user_id,
-        user_name=user_name,
-        profile_photo=profile_photo,
-        invoices=invoices,
-        total_invoices=len(invoices),
-        paid_invoices=paid_count,
-        pending_count=pending_count,
-        expired_invoices=expired_count
-    )
-
-@app.route('/logout')
-def logout():
-    """تسجيل الخروج"""
-    session.clear()
-    return redirect('/')
+    """الصفحة الرئيسية - توجيه لصفحة المستخدم"""
+    return '''
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>الصفحة الرئيسية</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, sans-serif;
+                background: #0f172a;
+                color: #f1f5f9;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0;
+            }
+            .container {
+                text-align: center;
+                padding: 40px;
+            }
+            h1 { font-size: 32px; margin-bottom: 20px; }
+            p { color: #94a3b8; margin-bottom: 30px; }
+            .info {
+                background: #1e293b;
+                padding: 20px;
+                border-radius: 15px;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+            code {
+                background: rgba(99, 102, 241, 0.2);
+                padding: 5px 10px;
+                border-radius: 5px;
+                color: #a5b4fc;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>👋 مرحباً</h1>
+            <p>للوصول لصفحتك الشخصية، استخدم الرابط:</p>
+            <div class="info">
+                <code>/id/آيدي_تيليجرام</code>
+                <p style="margin-top: 15px; font-size: 14px;">
+                    مثال: <code>/id/123456789</code>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
 
 
 # ==================== صفحة المستخدم الشخصية ====================
