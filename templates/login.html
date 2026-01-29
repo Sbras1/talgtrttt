@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-light: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header .icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+        }
+        
+        .login-header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        
+        .input-group-custom {
+            position: relative;
+        }
+        
+        .input-group-custom i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 15px 45px 15px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-light);
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 5px;
+            margin-bottom: 25px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+        
+        .alert-success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+        
+        .otp-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .otp-input {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-light);
+        }
+        
+        .otp-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .resend-timer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        
+        .resend-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .resend-btn:disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .back-btn:hover {
+            color: var(--text-light);
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Step 1: Choose Login Method -->
+            <div id="step1" class="step">
+                <div class="login-header">
+                    <div class="icon">
+                        <i class="fas fa-user-lock"></i>
+                    </div>
+                    <h1>تسجيل الدخول</h1>
+                    <p>اختر طريقة تسجيل الدخول</p>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('id')">
+                        <i class="fas fa-id-badge"></i> الآيدي
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('phone')">
+                        <i class="fas fa-phone"></i> رقم الجوال
+                    </button>
+                </div>
+                
+                <div id="alert-container"></div>
+                
+                <!-- Login by ID -->
+                <div id="tab-id" class="tab-content active">
+                    <form onsubmit="requestOTP('id'); return false;">
+                        <div class="form-group">
+                            <label>آيدي تيليجرام</label>
+                            <div class="input-group-custom">
+                                <i class="fas fa-id-badge"></i>
+                                <input type="text" id="user_id" class="form-control" 
+                                       placeholder="مثال: 123456789" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="btn-send-id">
+                            <span>إرسال كود التحقق</span>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Login by Phone -->
+                <div id="tab-phone" class="tab-content">
+                    <form onsubmit="requestOTP('phone'); return false;">
+                        <div class="form-group">
+                            <label>رقم الجوال الموثق</label>
+                            <div class="input-group-custom">
+                                <i class="fas fa-phone"></i>
+                                <input type="tel" id="user_phone" class="form-control" 
+                                       placeholder="مثال: 0512345678" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="btn-send-phone">
+                            <span>إرسال كود التحقق</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Step 2: Enter OTP -->
+            <div id="step2" class="step hidden">
+                <button class="back-btn" onclick="goBack()">
+                    <i class="fas fa-arrow-right"></i>
+                    رجوع
+                </button>
+                
+                <div class="login-header">
+                    <div class="icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h1>التحقق</h1>
+                    <p id="otp-msg">تم إرسال كود التحقق إلى حسابك في تيليجرام</p>
+                </div>
+                
+                <div id="alert-container2"></div>
+                
+                <form onsubmit="verifyOTP(); return false;">
+                    <div class="otp-inputs">
+                        <input type="text" class="otp-input" maxlength="1" data-index="0">
+                        <input type="text" class="otp-input" maxlength="1" data-index="1">
+                        <input type="text" class="otp-input" maxlength="1" data-index="2">
+                        <input type="text" class="otp-input" maxlength="1" data-index="3">
+                        <input type="text" class="otp-input" maxlength="1" data-index="4">
+                        <input type="text" class="otp-input" maxlength="1" data-index="5">
+                    </div>
+                    
+                    <button type="submit" class="btn-primary" id="btn-verify">
+                        <span>تأكيد</span>
+                    </button>
+                </form>
+                
+                <div class="resend-timer">
+                    <span id="timer-text">إعادة إرسال الكود بعد <span id="countdown">60</span> ثانية</span>
+                    <button class="resend-btn hidden" id="resend-btn" onclick="resendOTP()">
+                        إعادة إرسال الكود
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let loginMethod = 'id';
+        let loginValue = '';
+        let countdownInterval;
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.closest('.tab-btn').classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+            loginMethod = tab;
+        }
+        
+        function showAlert(container, message, type) {
+            const alertDiv = document.getElementById(container);
+            alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => alertDiv.innerHTML = '', 5000);
+        }
+        
+        function setLoading(btnId, loading) {
+            const btn = document.getElementById(btnId);
+            if (loading) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>جاري الإرسال...</span><div class="spinner"></div>';
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<span>إرسال كود التحقق</span>';
+            }
+        }
+        
+        async function requestOTP(method) {
+            loginMethod = method;
+            loginValue = method === 'id' ? 
+                document.getElementById('user_id').value.trim() : 
+                document.getElementById('user_phone').value.trim();
+            
+            if (!loginValue) {
+                showAlert('alert-container', 'الرجاء إدخال البيانات المطلوبة', 'danger');
+                return;
+            }
+            
+            const btnId = method === 'id' ? 'btn-send-id' : 'btn-send-phone';
+            setLoading(btnId, true);
+            
+            try {
+                const response = await fetch('/api/request-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        method: method,
+                        value: loginValue 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('step1').classList.add('hidden');
+                    document.getElementById('step2').classList.remove('hidden');
+                    
+                    if (method === 'phone') {
+                        document.getElementById('otp-msg').textContent = 
+                            'تم إرسال كود التحقق إلى حسابك المرتبط بهذا الرقم';
+                    }
+                    
+                    startCountdown();
+                    document.querySelector('.otp-input').focus();
+                } else {
+                    showAlert('alert-container', data.message || 'حدث خطأ', 'danger');
+                }
+            } catch (error) {
+                showAlert('alert-container', 'حدث خطأ في الاتصال', 'danger');
+            }
+            
+            setLoading(btnId, false);
+        }
+        
+        async function verifyOTP() {
+            const inputs = document.querySelectorAll('.otp-input');
+            let otp = '';
+            inputs.forEach(input => otp += input.value);
+            
+            if (otp.length !== 6) {
+                showAlert('alert-container2', 'الرجاء إدخال الكود كاملاً', 'danger');
+                return;
+            }
+            
+            const btn = document.getElementById('btn-verify');
+            btn.disabled = true;
+            btn.innerHTML = '<span>جاري التحقق...</span><div class="spinner"></div>';
+            
+            try {
+                const response = await fetch('/api/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        method: loginMethod,
+                        value: loginValue,
+                        otp: otp 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '/dashboard';
+                } else {
+                    showAlert('alert-container2', data.message || 'كود خاطئ', 'danger');
+                }
+            } catch (error) {
+                showAlert('alert-container2', 'حدث خطأ في الاتصال', 'danger');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<span>تأكيد</span>';
+        }
+        
+        function startCountdown() {
+            let seconds = 60;
+            document.getElementById('countdown').textContent = seconds;
+            document.getElementById('timer-text').classList.remove('hidden');
+            document.getElementById('resend-btn').classList.add('hidden');
+            
+            countdownInterval = setInterval(() => {
+                seconds--;
+                document.getElementById('countdown').textContent = seconds;
+                
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('timer-text').classList.add('hidden');
+                    document.getElementById('resend-btn').classList.remove('hidden');
+                }
+            }, 1000);
+        }
+        
+        function resendOTP() {
+            requestOTP(loginMethod);
+        }
+        
+        function goBack() {
+            clearInterval(countdownInterval);
+            document.getElementById('step1').classList.remove('hidden');
+            document.getElementById('step2').classList.add('hidden');
+            document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+        }
+        
+        // OTP Input Handling
+        document.querySelectorAll('.otp-input').forEach((input, index, inputs) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+            
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text');
+                const digits = paste.replace(/\D/g, '').slice(0, 6);
+                digits.split('').forEach((digit, i) => {
+                    if (inputs[i]) inputs[i].value = digit;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
