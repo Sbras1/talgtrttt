@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-light: #f1f5f9;
+            --text-muted: #94a3b8;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header .icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+        }
+        
+        .login-header h1 { font-size: 24px; margin-bottom: 10px; }
+        .login-header p { color: var(--text-muted); font-size: 14px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-wrapper i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 15px 45px 15px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-light);
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .form-control::placeholder { color: var(--text-muted); }
+        
+        .form-control.otp-input {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 12px;
+            padding: 15px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            display: block;
+        }
+        
+        .alert-success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+            display: block;
+        }
+        
+        .step { display: none; }
+        .step.active { display: block; }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .back-btn:hover { color: var(--text-light); }
+        
+        .timer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        
+        .resend-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .resend-btn:disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Step 1: Enter ID -->
+            <div id="step1" class="step active">
+                <div class="login-header">
+                    <div class="icon">
+                        <i class="fas fa-user-lock"></i>
+                    </div>
+                    <h1>تسجيل الدخول</h1>
+                    <p>أدخل آيدي تيليجرام للمتابعة</p>
+                </div>
+                
+                <div id="alert1"></div>
+                
+                <form onsubmit="requestOTP(); return false;">
+                    <div class="form-group">
+                        <label>آيدي تيليجرام</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-id-badge"></i>
+                            <input type="text" id="user_id" class="form-control" 
+                                   placeholder="مثال: 123456789" 
+                                   inputmode="numeric" pattern="[0-9]*" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn" id="btn-send">
+                        <span>إرسال كود التحقق</span>
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Step 2: Enter OTP -->
+            <div id="step2" class="step">
+                <button class="back-btn" onclick="goBack()">
+                    <i class="fas fa-arrow-right"></i>
+                    رجوع
+                </button>
+                
+                <div class="login-header">
+                    <div class="icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h1>أدخل الكود</h1>
+                    <p>تم إرسال كود التحقق إلى حسابك في تيليجرام</p>
+                </div>
+                
+                <div id="alert2"></div>
+                
+                <form onsubmit="verifyOTP(); return false;">
+                    <div class="form-group">
+                        <input type="text" id="otp_code" class="form-control otp-input" 
+                               placeholder="------" maxlength="6"
+                               inputmode="numeric" pattern="[0-9]*" required
+                               oninput="this.value = this.value.replace(/\D/g, '')">
+                    </div>
+                    <button type="submit" class="btn" id="btn-verify">
+                        <span>تأكيد</span>
+                    </button>
+                </form>
+                
+                <div class="timer">
+                    <span id="timer-text">إعادة إرسال الكود بعد <span id="countdown">60</span> ثانية</span>
+                    <button class="resend-btn" id="resend-btn" onclick="resendOTP()" style="display:none;">
+                        إعادة إرسال الكود
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let userId = '';
+        let countdownInterval;
+        
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.className = 'alert alert-' + type;
+            container.textContent = message;
+            setTimeout(() => container.className = 'alert', 5000);
+        }
+        
+        async function requestOTP() {
+            userId = document.getElementById('user_id').value.trim();
+            if (!userId || !/^\d+$/.test(userId)) {
+                showAlert('alert1', 'الرجاء إدخال آيدي صحيح (أرقام فقط)', 'danger');
+                return;
+            }
+            
+            const btn = document.getElementById('btn-send');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div><span>جاري الإرسال...</span>';
+            
+            try {
+                const response = await fetch('/api/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('step1').classList.remove('active');
+                    document.getElementById('step2').classList.add('active');
+                    document.getElementById('otp_code').focus();
+                    startCountdown();
+                } else {
+                    showAlert('alert1', data.message || 'حدث خطأ', 'danger');
+                }
+            } catch (error) {
+                showAlert('alert1', 'حدث خطأ في الاتصال', 'danger');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<span>إرسال كود التحقق</span>';
+        }
+        
+        async function verifyOTP() {
+            const otp = document.getElementById('otp_code').value.trim();
+            if (!otp || otp.length !== 6) {
+                showAlert('alert2', 'الرجاء إدخال الكود كاملاً (6 أرقام)', 'danger');
+                return;
+            }
+            
+            const btn = document.getElementById('btn-verify');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div><span>جاري التحقق...</span>';
+            
+            try {
+                const response = await fetch('/api/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, otp: otp })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '/id/' + userId;
+                } else {
+                    showAlert('alert2', data.message || 'كود خاطئ', 'danger');
+                }
+            } catch (error) {
+                showAlert('alert2', 'حدث خطأ في الاتصال', 'danger');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<span>تأكيد</span>';
+        }
+        
+        function startCountdown() {
+            let seconds = 60;
+            document.getElementById('countdown').textContent = seconds;
+            document.getElementById('timer-text').style.display = 'inline';
+            document.getElementById('resend-btn').style.display = 'none';
+            
+            countdownInterval = setInterval(() => {
+                seconds--;
+                document.getElementById('countdown').textContent = seconds;
+                
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('timer-text').style.display = 'none';
+                    document.getElementById('resend-btn').style.display = 'inline';
+                }
+            }, 1000);
+        }
+        
+        function resendOTP() {
+            requestOTP();
+        }
+        
+        function goBack() {
+            clearInterval(countdownInterval);
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('otp_code').value = '';
+        }
+        
+        // أرقام فقط في حقل الآيدي
+        document.getElementById('user_id').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
+        });
+        
+        // التعامل مع redirect_id في الرابط
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectId = urlParams.get('redirect_id');
+            if (redirectId) {
+                document.getElementById('user_id').value = redirectId;
+            }
+        });
+    </script>
+</body>
+</html>

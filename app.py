@@ -937,64 +937,107 @@ def favicon():
     """أيقونة الموقع"""
     return '', 204
 
-# ==================== الصفحة الرئيسية ====================
+# ==================== نظام تسجيل الدخول بالآيدي ====================
+
+# تخزين أكواد OTP المؤقتة
+otp_storage = {}
 
 @app.route('/')
 def index():
-    """الصفحة الرئيسية - توجيه لصفحة المستخدم"""
-    return '''
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>الصفحة الرئيسية</title>
-        <style>
-            body {
-                font-family: 'Segoe UI', Tahoma, sans-serif;
-                background: #0f172a;
-                color: #f1f5f9;
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0;
-            }
-            .container {
-                text-align: center;
-                padding: 40px;
-            }
-            h1 { font-size: 32px; margin-bottom: 20px; }
-            p { color: #94a3b8; margin-bottom: 30px; }
-            .info {
-                background: #1e293b;
-                padding: 20px;
-                border-radius: 15px;
-                max-width: 400px;
-                margin: 0 auto;
-            }
-            code {
-                background: rgba(99, 102, 241, 0.2);
-                padding: 5px 10px;
-                border-radius: 5px;
-                color: #a5b4fc;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>👋 مرحباً</h1>
-            <p>للوصول لصفحتك الشخصية، استخدم الرابط:</p>
-            <div class="info">
-                <code>/id/آيدي_تيليجرام</code>
-                <p style="margin-top: 15px; font-size: 14px;">
-                    مثال: <code>/id/123456789</code>
-                </p>
-            </div>
-        </div>
-    </body>
-    </html>
-    '''
+    """الصفحة الرئيسية - تسجيل الدخول"""
+    return render_template('login.html')
+
+@app.route('/api/send-otp', methods=['POST'])
+@limiter.limit("5 per minute")
+def send_otp():
+    """إرسال كود OTP للمستخدم"""
+    import random
+    from datetime import datetime, timedelta
+    
+    data = request.json
+    user_id = str(data.get('user_id', '')).strip()
+    
+    if not user_id or not user_id.isdigit():
+        return jsonify({'success': False, 'message': 'الرجاء إدخال آيدي صحيح'})
+    
+    # التحقق من وجود المستخدم
+    try:
+        user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            return jsonify({'success': False, 'message': 'هذا الآيدي غير مسجل، استخدم البوت أولاً'})
+    except Exception as e:
+        print(f"خطأ في البحث عن المستخدم: {e}")
+        return jsonify({'success': False, 'message': 'حدث خطأ'})
+    
+    # توليد كود OTP (6 أرقام)
+    otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    
+    # حفظ الكود مع وقت انتهاء (5 دقائق)
+    otp_storage[user_id] = {
+        'otp': otp,
+        'expires': datetime.now() + timedelta(minutes=5)
+    }
+    
+    # إرسال الكود عبر البوت
+    try:
+        from telegram.bot_handlers import bot
+        bot.send_message(
+            int(user_id),
+            f"🔐 *كود التحقق*\n\n"
+            f"الكود الخاص بك: `{otp}`\n\n"
+            f"⏱ صالح لمدة 5 دقائق\n\n"
+            f"⚠️ لا تشارك هذا الكود مع أي شخص",
+            parse_mode="Markdown"
+        )
+        print(f"✅ تم إرسال OTP للمستخدم {user_id}")
+        return jsonify({'success': True, 'message': 'تم إرسال الكود'})
+    except Exception as e:
+        print(f"❌ خطأ في إرسال OTP: {e}")
+        return jsonify({'success': False, 'message': 'تأكد أنك تستخدم البوت ولم تحظره'})
+
+@app.route('/api/verify-otp', methods=['POST'])
+@limiter.limit("10 per minute")
+def verify_otp():
+    """التحقق من كود OTP"""
+    from datetime import datetime
+    
+    data = request.json
+    user_id = str(data.get('user_id', '')).strip()
+    otp = str(data.get('otp', '')).strip()
+    
+    if not user_id or not otp or len(otp) != 6:
+        return jsonify({'success': False, 'message': 'بيانات غير صحيحة'})
+    
+    # التحقق من وجود الكود
+    if user_id not in otp_storage:
+        return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، أعد الإرسال'})
+    
+    stored = otp_storage[user_id]
+    
+    # التحقق من انتهاء الصلاحية
+    if datetime.now() > stored['expires']:
+        del otp_storage[user_id]
+        return jsonify({'success': False, 'message': 'انتهت صلاحية الكود'})
+    
+    # التحقق من الكود
+    if otp != stored['otp']:
+        return jsonify({'success': False, 'message': 'كود خاطئ'})
+    
+    # تسجيل الدخول
+    session['logged_user_id'] = user_id
+    session['logged_in'] = True
+    
+    # حذف الكود
+    del otp_storage[user_id]
+    
+    return jsonify({'success': True, 'message': 'تم تسجيل الدخول'})
+
+
+@app.route('/logout')
+def logout():
+    """تسجيل الخروج"""
+    session.clear()
+    return redirect('/')
 
 
 # ==================== صفحة المستخدم الشخصية ====================
@@ -1005,6 +1048,11 @@ def user_profile_page(user_id):
     from datetime import datetime
     
     user_id = str(user_id).strip()
+    
+    # التحقق من تسجيل الدخول
+    if not session.get('logged_in') or session.get('logged_user_id') != user_id:
+        # إعادة توجيه لصفحة تسجيل الدخول مع حفظ الآيدي
+        return redirect(f'/?redirect_id={user_id}')
     
     # البحث عن المستخدم
     user_found = False
