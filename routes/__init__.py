@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 حزمة المسارات - Routes Package
-تحتوي على جميع مسارات التطبيق مقسمة حسب الوظيفة
+تحتوي على مسارات الدفع والـ API
 """
 
-from routes.cart import cart_bp, init_cart
-from routes.wallet import wallet_bp, init_wallet
-from routes.admin import admin_bp, init_admin
+from routes.api_routes import api_bp
+from routes.payment_routes import payment_bp
 
 __all__ = [
-    'cart_bp', 'init_cart',
-    'wallet_bp', 'init_wallet', 
-    'admin_bp', 'init_admin'
+    'api_bp',
+    'payment_bp'
 ]

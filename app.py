@@ -78,12 +78,8 @@ except ImportError:
     print("⚠️ encryption_utils غير متوفرة - التشفير معطل")
 
 # استيراد نظام المسارات المفصولة (Blueprints)
-from routes import cart_bp, init_cart, wallet_bp, init_wallet, admin_bp, init_admin
 from routes.api_routes import api_bp
-from routes.web_routes import web_bp
-from routes.auth_routes import auth_bp
 from routes.payment_routes import payment_bp, set_merchant_invoices
-from routes.profile import profile_bp
 
 # استيراد معالجات البوت
 from telegram import bot_handlers
@@ -324,42 +320,14 @@ DEFAULT_CATEGORIES_FALLBACK = [
 ]
 
 # ====== تسجيل Blueprints ======
-# تهيئة وتسجيل نظام السلة
-init_cart(bot, ADMIN_ID, limiter)
-app.register_blueprint(cart_bp)
-
-# تهيئة وتسجيل نظام المحفظة
-init_wallet(
-    merchant_id=EDFAPAY_MERCHANT_ID,
-    password=EDFAPAY_PASSWORD,
-    api_url=EDFAPAY_API_URL,
-    site_url=SITE_URL,
-    payments_dict=pending_payments,
-    app_limiter=limiter
-)
-app.register_blueprint(wallet_bp)
-
-# تهيئة وتسجيل لوحة التحكم
-init_admin(db, bot, ADMIN_ID, limiter, BOT_ACTIVE)
-app.register_blueprint(admin_bp)
-
 # تسجيل API Blueprint
 app.register_blueprint(api_bp)
-
-# تسجيل Web Blueprint
-app.register_blueprint(web_bp)
-
-# تسجيل Auth Blueprint
-app.register_blueprint(auth_bp)
-
-# تسجيل Profile Blueprint
-app.register_blueprint(profile_bp)
 
 # تسجيل Payment Blueprint
 set_merchant_invoices(merchant_invoices)
 app.register_blueprint(payment_bp)
 
-print("✅ تم تسجيل جميع Blueprints (السلة، المحفظة، لوحة التحكم، API، Web, Auth, Profile, Payment)")
+print("✅ تم تسجيل Blueprints (API, Payment)")
 
 # دالة تحميل جميع البيانات من Firebase عند بدء التطبيق
 def load_all_data_from_firebase():
