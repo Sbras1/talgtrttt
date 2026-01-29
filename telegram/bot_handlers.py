@@ -2120,11 +2120,9 @@ def back_to_start_menu(call):
         btn_site = types.InlineKeyboardButton("رابط الموقع", url=SITE_URL)
         btn_myid = types.InlineKeyboardButton("آيدي", callback_data="my_id")
         btn_acc = types.InlineKeyboardButton("المحاسبة", callback_data="acc_main")
-        btn_code = types.InlineKeyboardButton("شحن كود", callback_data="recharge_code")
         btn_invoice = types.InlineKeyboardButton("إنشاء فاتورة", callback_data="create_invoice")
         markup.add(btn_site, btn_myid)
-        markup.add(btn_acc)
-        markup.add(btn_code, btn_invoice)
+        markup.add(btn_acc, btn_invoice)
         
         bot.edit_message_text(
             f"أهلاً يا {user_name}! 👋\n\n"
