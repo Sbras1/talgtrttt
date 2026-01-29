@@ -232,8 +232,8 @@ def send_welcome(message):
         
         # إنشاء أزرار Inline داخل الرسالة
         markup = types.InlineKeyboardMarkup(row_width=2)
-        btn_site = types.InlineKeyboardButton("رابط الموقع", url=SITE_URL)
-        btn_myid = types.InlineKeyboardButton("آيدي", callback_data="my_id")
+        btn_site = types.InlineKeyboardButton("🔗 رابط الموقع", callback_data="show_site_link")
+        btn_myid = types.InlineKeyboardButton("🆔 آيدي", callback_data="my_id")
         btn_acc = types.InlineKeyboardButton("المحاسبة", callback_data="acc_main")
         btn_invoice = types.InlineKeyboardButton("إنشاء فاتورة", callback_data="create_invoice")
         btn_support = types.InlineKeyboardButton("📞 الدعم الفني", callback_data="support_contact")
@@ -270,6 +270,34 @@ def handle_myid_button(call):
         bot.answer_callback_query(call.id)
     except Exception as e:
         print(f"❌ خطأ في my_id button: {e}")
+        bot.answer_callback_query(call.id, "حدث خطأ!")
+
+# معالج زر رابط الموقع
+@bot.callback_query_handler(func=lambda call: call.data == "show_site_link")
+def handle_site_link_button(call):
+    """معالج زر رابط الموقع"""
+    try:
+        site_msg = (
+            "🌐 *رابط الموقع*\n\n"
+            "يمكنك زيارة موقعنا من خلال الرابط التالي:\n\n"
+            f"🔗 {SITE_URL}\n\n"
+            "📌 انسخ الرابط وافتحه في المتصفح"
+        )
+        
+        markup = types.InlineKeyboardMarkup()
+        btn_back = types.InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main")
+        markup.add(btn_back)
+        
+        bot.edit_message_text(
+            site_msg,
+            call.message.chat.id,
+            call.message.message_id,
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+        bot.answer_callback_query(call.id)
+    except Exception as e:
+        print(f"❌ خطأ في show_site_link button: {e}")
         bot.answer_callback_query(call.id, "حدث خطأ!")
 
 # معالج زر الدعم الفني
@@ -322,8 +350,8 @@ def handle_back_to_main(call):
         
         # إنشاء الأزرار
         markup = types.InlineKeyboardMarkup(row_width=2)
-        btn_site = types.InlineKeyboardButton("رابط الموقع", url=SITE_URL)
-        btn_myid = types.InlineKeyboardButton("آيدي", callback_data="my_id")
+        btn_site = types.InlineKeyboardButton("🔗 رابط الموقع", callback_data="show_site_link")
+        btn_myid = types.InlineKeyboardButton("🆔 آيدي", callback_data="my_id")
         btn_acc = types.InlineKeyboardButton("المحاسبة", callback_data="acc_main")
         btn_invoice = types.InlineKeyboardButton("إنشاء فاتورة", callback_data="create_invoice")
         btn_support = types.InlineKeyboardButton("📞 الدعم الفني", callback_data="support_contact")
@@ -2117,10 +2145,10 @@ def back_to_start_menu(call):
                 pass
         
         markup = types.InlineKeyboardMarkup(row_width=2)
-        btn_site = types.InlineKeyboardButton("رابط الموقع", url=SITE_URL)
-        btn_myid = types.InlineKeyboardButton("آيدي", callback_data="my_id")
-        btn_acc = types.InlineKeyboardButton("المحاسبة", callback_data="acc_main")
-        btn_invoice = types.InlineKeyboardButton("إنشاء فاتورة", callback_data="create_invoice")
+        btn_site = types.InlineKeyboardButton("🔗 رابط الموقع", callback_data="show_site_link")
+        btn_myid = types.InlineKeyboardButton("🆔 آيدي", callback_data="my_id")
+        btn_acc = types.InlineKeyboardButton("📊 المحاسبة", callback_data="acc_main")
+        btn_invoice = types.InlineKeyboardButton("📄 إنشاء فاتورة", callback_data="create_invoice")
         markup.add(btn_site, btn_myid)
         markup.add(btn_acc, btn_invoice)
         
