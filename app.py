@@ -1081,6 +1081,7 @@ def user_profile_page(user_id):
     expired_count = 0
     
     try:
+        # 1️⃣ جلب الفواتير من pending_payments
         invoices_ref = db.collection('pending_payments').where('user_id', '==', user_id).stream()
         
         for doc in invoices_ref:
@@ -1097,28 +1098,98 @@ def user_profile_page(user_id):
                             if datetime.now(exp_time.tzinfo) > exp_time:
                                 status = 'expired'
                                 db.collection('pending_payments').document(doc.id).update({'status': 'expired'})
+                        elif isinstance(expires_at, (int, float)):
+                            import time as time_module
+                            if time_module.time() > expires_at:
+                                status = 'expired'
+                                db.collection('pending_payments').document(doc.id).update({'status': 'expired'})
                     except:
                         pass
             
             invoices.append({
                 'id': doc.id,
                 'amount': inv_data.get('amount', 0),
-                'status': status,
+                'status': status if status != 'completed' else 'paid',
                 'date': inv_data.get('created_at', inv_data.get('date', '-')),
-                'description': inv_data.get('description', inv_data.get('type', ''))
+                'description': inv_data.get('description', inv_data.get('type', 'شحن رصيد')),
+                'source': 'pending_payments'
             })
-            
-            if status in ['paid', 'success']:
+        
+        # 2️⃣ جلب سجل الشحنات من charge_history
+        charges_ref = db.collection('charge_history').where('user_id', '==', user_id).stream()
+        
+        for doc in charges_ref:
+            charge_data = doc.to_dict()
+            # تجنب التكرار - التحقق من عدم وجود نفس الـ order_id
+            order_id = charge_data.get('order_id', doc.id)
+            if not any(inv['id'] == order_id for inv in invoices):
+                invoices.append({
+                    'id': order_id,
+                    'amount': charge_data.get('amount', 0),
+                    'status': 'paid',
+                    'date': charge_data.get('created_at', charge_data.get('date', '-')),
+                    'description': charge_data.get('payment_type', 'شحن رصيد'),
+                    'source': 'charge_history'
+                })
+        
+        # 3️⃣ جلب الطلبات من orders
+        orders_ref = db.collection('orders').where('buyer_id', '==', user_id).stream()
+        
+        for doc in orders_ref:
+            order_data = doc.to_dict()
+            order_status = order_data.get('status', 'pending')
+            invoices.append({
+                'id': doc.id,
+                'amount': order_data.get('price', 0),
+                'status': 'paid' if order_status == 'completed' else order_status,
+                'date': order_data.get('created_at', '-'),
+                'description': order_data.get('item_name', 'طلب شراء'),
+                'source': 'orders'
+            })
+        
+        # حساب الإحصائيات
+        for inv in invoices:
+            status = inv.get('status', '')
+            if status in ['paid', 'success', 'completed']:
                 paid_count += 1
             elif status == 'pending':
                 pending_count += 1
             elif status == 'expired':
                 expired_count += 1
         
-        invoices.sort(key=lambda x: x.get('date', ''), reverse=True)
+        # ترتيب حسب التاريخ
+        def get_date_value(inv):
+            date_val = inv.get('date', '')
+            if hasattr(date_val, 'timestamp'):
+                return date_val.timestamp()
+            elif isinstance(date_val, str) and date_val != '-':
+                try:
+                    return datetime.fromisoformat(date_val.replace('Z', '+00:00')).timestamp()
+                except:
+                    return 0
+            return 0
+        
+        invoices.sort(key=get_date_value, reverse=True)
+        
+        # تحويل التواريخ لنص
+        def format_date(date_val):
+            if hasattr(date_val, 'strftime'):
+                return date_val.strftime('%Y-%m-%d %H:%M')
+            elif isinstance(date_val, str) and date_val != '-':
+                try:
+                    dt = datetime.fromisoformat(date_val.replace('Z', '+00:00'))
+                    return dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    return date_val
+            return '-'
+        
+        for inv in invoices:
+            inv['date'] = format_date(inv.get('date', ''))
         
     except Exception as e:
         print(f"خطأ في جلب الفواتير: {e}")
+        import traceback
+        traceback.print_exc()
     
     # رابط الصفحة
     page_url = f"{SITE_URL}/id/{user_id}"
