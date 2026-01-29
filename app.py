@@ -2167,8 +2167,7 @@ def migrate_to_firebase_route():
             'data': {
                 'products': len(get_all_products_for_store()),
                 'users': len(get_all_users()),
-                'orders': len(get_active_orders()),
-                'keys': len(get_all_charge_keys())
+                'orders': len(get_active_orders())
             }
         }, 200
     else:
