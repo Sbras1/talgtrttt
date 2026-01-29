@@ -198,14 +198,14 @@
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin: 20px 0;
+            margin: 15px 0;
         }
         
         .otp-input {
-            width: 50px;
-            height: 60px;
+            width: 45px;
+            height: 55px;
             text-align: center;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             background: rgba(255, 255, 255, 0.05);
             border: 2px solid rgba(255, 255, 255, 0.1);
@@ -216,6 +216,39 @@
         .otp-input:focus {
             outline: none;
             border-color: var(--primary);
+        }
+        
+        .otp-single-input {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 8px;
+        }
+        
+        .otp-separator {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            margin: 15px 0 10px;
+            position: relative;
+        }
+        
+        .otp-separator::before,
+        .otp-separator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 30%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .otp-separator::before {
+            right: 0;
+        }
+        
+        .otp-separator::after {
+            left: 0;
         }
         
         .resend-timer {
@@ -350,13 +383,27 @@
                 <div id="alert-container2"></div>
                 
                 <form onsubmit="verifyOTP(); return false;">
+                    <!-- حقل واحد للصق الكود -->
+                    <div class="form-group">
+                        <div class="input-group-custom">
+                            <i class="fas fa-key"></i>
+                            <input type="text" id="otp-single" class="form-control otp-single-input" 
+                                   placeholder="أدخل الكود المكون من 6 أرقام"
+                                   maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                                   autocomplete="one-time-code">
+                        </div>
+                    </div>
+                    
+                    <!-- أو خانات منفصلة -->
+                    <div class="otp-separator">أو أدخل كل رقم</div>
+                    
                     <div class="otp-inputs">
-                        <input type="text" class="otp-input" maxlength="1" data-index="0">
-                        <input type="text" class="otp-input" maxlength="1" data-index="1">
-                        <input type="text" class="otp-input" maxlength="1" data-index="2">
-                        <input type="text" class="otp-input" maxlength="1" data-index="3">
-                        <input type="text" class="otp-input" maxlength="1" data-index="4">
-                        <input type="text" class="otp-input" maxlength="1" data-index="5">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="0">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="1">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="2">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="3">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="4">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-index="5">
                     </div>
                     
                     <button type="submit" class="btn-primary" id="btn-verify">
@@ -441,7 +488,8 @@
                     }
                     
                     startCountdown();
-                    document.querySelector('.otp-input').focus();
+                    // التركيز على حقل الكود الواحد
+                    document.getElementById('otp-single').focus();
                 } else {
                     showAlert('alert-container', data.message || 'حدث خطأ', 'danger');
                 }
@@ -453,12 +501,10 @@
         }
         
         async function verifyOTP() {
-            const inputs = document.querySelectorAll('.otp-input');
-            let otp = '';
-            inputs.forEach(input => otp += input.value);
+            const otp = getOTPValue();
             
             if (otp.length !== 6) {
-                showAlert('alert-container2', 'الرجاء إدخال الكود كاملاً', 'danger');
+                showAlert('alert-container2', 'الرجاء إدخال الكود كاملاً (6 أرقام)', 'danger');
                 return;
             }
             
@@ -519,14 +565,38 @@
             document.getElementById('step1').classList.remove('hidden');
             document.getElementById('step2').classList.add('hidden');
             document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+            document.getElementById('otp-single').value = '';
         }
         
         // OTP Input Handling
-        document.querySelectorAll('.otp-input').forEach((input, index, inputs) => {
+        const otpInputs = document.querySelectorAll('.otp-input');
+        const otpSingle = document.getElementById('otp-single');
+        
+        // حقل الكود الواحد - أرقام فقط
+        otpSingle.addEventListener('input', (e) => {
+            // إزالة أي شيء غير الأرقام
+            e.target.value = e.target.value.replace(/\D/g, '');
+            
+            // تعبئة الخانات المنفصلة تلقائياً
+            const digits = e.target.value.split('');
+            otpInputs.forEach((input, i) => {
+                input.value = digits[i] || '';
+            });
+        });
+        
+        // الخانات المنفصلة
+        otpInputs.forEach((input, index, inputs) => {
+            // أرقام فقط
             input.addEventListener('input', (e) => {
+                // إزالة أي شيء غير الأرقام
+                e.target.value = e.target.value.replace(/\D/g, '');
+                
                 if (e.target.value && index < inputs.length - 1) {
                     inputs[index + 1].focus();
                 }
+                
+                // تحديث الحقل الواحد
+                updateSingleInput();
             });
             
             input.addEventListener('keydown', (e) => {
@@ -542,8 +612,29 @@
                 digits.split('').forEach((digit, i) => {
                     if (inputs[i]) inputs[i].value = digit;
                 });
+                updateSingleInput();
+                if (digits.length === 6) {
+                    inputs[5].focus();
+                }
             });
         });
+        
+        function updateSingleInput() {
+            let otp = '';
+            otpInputs.forEach(input => otp += input.value);
+            otpSingle.value = otp;
+        }
+        
+        function getOTPValue() {
+            // أولاً نحاول من الحقل الواحد
+            let otp = otpSingle.value.replace(/\D/g, '');
+            if (otp.length === 6) return otp;
+            
+            // ثانياً من الخانات المنفصلة
+            otp = '';
+            otpInputs.forEach(input => otp += input.value);
+            return otp.replace(/\D/g, '');
+        }
     </script>
 </body>
 </html>
