@@ -275,17 +275,23 @@ def handle_myid_button(call):
 # معالج زر رابط الموقع
 @bot.callback_query_handler(func=lambda call: call.data == "show_site_link")
 def handle_site_link_button(call):
-    """معالج زر رابط الموقع"""
+    """معالج زر رابط الموقع - يعرض رابط صفحة المستخدم الشخصية"""
     try:
+        user_id = call.from_user.id
+        user_page_url = f"{SITE_URL}/id/{user_id}"
+        
         site_msg = (
-            "🌐 *رابط الموقع*\n\n"
-            "يمكنك زيارة موقعنا من خلال الرابط التالي:\n\n"
-            f"🔗 {SITE_URL}\n\n"
-            "📌 انسخ الرابط وافتحه في المتصفح"
+            "🌐 *صفحتك الشخصية*\n\n"
+            "هذا رابط صفحتك الخاصة:\n\n"
+            f"🔗 `{user_page_url}`\n\n"
+            "📌 يمكنك مشاركة هذا الرابط مع العملاء\n"
+            "📄 سيظهر لهم فواتيرك وإحصائياتك"
         )
         
         markup = types.InlineKeyboardMarkup()
+        btn_open = types.InlineKeyboardButton("🌐 فتح الصفحة", url=user_page_url)
         btn_back = types.InlineKeyboardButton("🔙 رجوع", callback_data="back_to_main")
+        markup.add(btn_open)
         markup.add(btn_back)
         
         bot.edit_message_text(

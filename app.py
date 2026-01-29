@@ -1182,6 +1182,99 @@ def logout():
     return redirect('/')
 
 
+# ==================== صفحة المستخدم الشخصية ====================
+
+@app.route('/id/<user_id>')
+def user_profile_page(user_id):
+    """صفحة المستخدم الشخصية - /id/123456789"""
+    from datetime import datetime
+    
+    user_id = str(user_id).strip()
+    
+    # البحث عن المستخدم
+    user_found = False
+    user_name = ''
+    profile_photo = ''
+    phone_verified = False
+    
+    try:
+        user_doc = db.collection('users').document(user_id).get()
+        if user_doc.exists:
+            user_found = True
+            user_data = user_doc.to_dict()
+            user_name = user_data.get('first_name', user_data.get('username', 'مستخدم'))
+            profile_photo = user_data.get('profile_photo', '')
+            phone_verified = bool(user_data.get('phone'))
+    except Exception as e:
+        print(f"خطأ في البحث عن المستخدم: {e}")
+    
+    if not user_found:
+        return render_template('user_profile.html', user_found=False)
+    
+    # جلب الفواتير
+    invoices = []
+    paid_count = 0
+    pending_count = 0
+    expired_count = 0
+    
+    try:
+        invoices_ref = db.collection('pending_payments').where('user_id', '==', user_id).stream()
+        
+        for doc in invoices_ref:
+            inv_data = doc.to_dict()
+            status = inv_data.get('status', 'pending')
+            
+            # التحقق من انتهاء الصلاحية
+            if status == 'pending':
+                expires_at = inv_data.get('expires_at')
+                if expires_at:
+                    try:
+                        if isinstance(expires_at, str):
+                            exp_time = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                            if datetime.now(exp_time.tzinfo) > exp_time:
+                                status = 'expired'
+                                db.collection('pending_payments').document(doc.id).update({'status': 'expired'})
+                    except:
+                        pass
+            
+            invoices.append({
+                'id': doc.id,
+                'amount': inv_data.get('amount', 0),
+                'status': status,
+                'date': inv_data.get('created_at', inv_data.get('date', '-')),
+                'description': inv_data.get('description', inv_data.get('type', ''))
+            })
+            
+            if status in ['paid', 'success']:
+                paid_count += 1
+            elif status == 'pending':
+                pending_count += 1
+            elif status == 'expired':
+                expired_count += 1
+        
+        invoices.sort(key=lambda x: x.get('date', ''), reverse=True)
+        
+    except Exception as e:
+        print(f"خطأ في جلب الفواتير: {e}")
+    
+    # رابط الصفحة
+    page_url = f"{SITE_URL}/id/{user_id}"
+    
+    return render_template('user_profile.html',
+        user_found=True,
+        user_id=user_id,
+        user_name=user_name,
+        profile_photo=profile_photo,
+        phone_verified=phone_verified,
+        page_url=page_url,
+        invoices=invoices,
+        total_invoices=len(invoices),
+        paid_invoices=paid_count,
+        pending_count=pending_count,
+        expired_invoices=expired_count
+    )
+
+
 # ====== Web Routes ======
 
 @app.route('/get_balance')
