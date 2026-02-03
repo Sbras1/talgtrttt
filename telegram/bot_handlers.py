@@ -1054,7 +1054,7 @@ def create_edfapay_invoice(user_id, amount, user_name):
         # التحقق من النجاح
         if response.status_code == 200 and result.get('redirect_url'):
             payment_url = result.get('redirect_url')
-            expires_at = time.time() + 600  # 10 دقائق
+            expires_at = time.time() + 600  # 15 دقيقة
             
             # حفظ الطلب المعلق
             pending_payments[order_id] = {
@@ -1520,8 +1520,8 @@ def create_customer_invoice(merchant_id, merchant_name, amount, customer_phone, 
         if response.status_code == 200 and result.get('redirect_url'):
             payment_url = result.get('redirect_url')
             
-            # حفظ الفاتورة في الذاكرة (صلاحية 10 دقائق)
-            expires_at = time.time() + 600  # 10 دقائق
+            # حفظ الفاتورة في الذاكرة (صلاحية 15 دقيقة)
+            expires_at = time.time() + 900  # 15 دقيقة
             merchant_invoices[invoice_id] = {
                 'invoice_id': invoice_id,
                 'order_id': order_id,

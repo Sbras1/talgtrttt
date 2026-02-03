@@ -81,9 +81,9 @@ def show_invoice(invoice_id):
         created_at = invoice_data.get('created_at')
         if created_at:
             if hasattr(created_at, 'timestamp'):
-                expires_at_ts = created_at.timestamp() + 600  # 10 دقائق
+                expires_at_ts = created_at.timestamp() + 600  # 15 دقيقة
             elif isinstance(created_at, (int, float)):
-                expires_at_ts = created_at + 600  # 10 دقائق
+                expires_at_ts = created_at + 600  # 15 دقيقة
             else:
                 expires_at_ts = time.time()
         else:
