@@ -161,7 +161,7 @@ def process_invoice_payment(invoice_id):
 
 @payment_bp.route('/payment/success', methods=['GET', 'POST'])
 def payment_success():
-    """صفحة نتيجة الدفع - تتحقق من الحالة الفعلية"""
+    """صفحة نتيجة الدفع - تتحقق من الحالة الفعلية في Firebase"""
     
     data = {}
     if request.method == 'POST':
@@ -171,48 +171,70 @@ def payment_success():
     
     print(f"📄 Payment Result Page: {data}")
     
-    status = data.get('status', '') or data.get('result', '')
     order_id = data.get('order_id', '')
+    invoice_id = data.get('invoice', '')
     decline_reason = data.get('decline_reason', '')
     
-    status_upper = str(status).upper().strip()
+    is_success = False
+    is_failed = False
+    is_expired = False
     
-    SUCCESS_STATUSES = ['SUCCESS', 'SETTLED', 'CAPTURED', 'APPROVED', '3DS_SUCCESS']
-    FAILED_STATUSES = ['DECLINED', 'FAILURE', 'FAILED', 'TXN_FAILURE', 'REJECTED', 'CANCELLED', 'ERROR', '3DS_FAILURE']
-    
-    is_success = status_upper in SUCCESS_STATUSES
-    is_failed = status_upper in FAILED_STATUSES
-    
-    result = data.get('result', '').upper()
-    if result == 'DECLINED' or result == 'FAILURE':
-        is_success = False
-        is_failed = True
-    
-    # التحقق من Firebase
-    if not status and order_id:
+    # ✅ التحقق من الحالة الفعلية في Firebase (الأهم!)
+    if order_id:
         try:
             doc = db.collection('pending_payments').document(order_id).get()
             if doc.exists:
                 payment_data = doc.to_dict()
                 payment_status = payment_data.get('status', '')
-                if payment_status == 'completed':
+                expires_at = payment_data.get('expires_at', 0)
+                
+                # التحقق من انتهاء الصلاحية
+                if expires_at and time.time() > expires_at:
+                    is_expired = True
+                    is_failed = True
+                    decline_reason = 'انتهت صلاحية رابط الدفع'
+                elif payment_status == 'completed':
                     is_success = True
-                    is_failed = False
                 elif payment_status == 'failed':
-                    is_success = False
                     is_failed = True
                     decline_reason = payment_data.get('failure_reason', 'فشلت العملية')
+                # إذا pending - ننتظر الـ webhook
         except Exception as e:
             print(f"⚠️ خطأ في التحقق من Firebase: {e}")
     
+    # إذا لم نجد في Firebase، نتحقق من invoice
+    if not is_success and not is_failed and invoice_id:
+        try:
+            inv_doc = db.collection('merchant_invoices').document(invoice_id).get()
+            if inv_doc.exists:
+                inv_data = inv_doc.to_dict()
+                inv_status = inv_data.get('status', '')
+                expires_at = inv_data.get('expires_at', 0)
+                
+                if expires_at and time.time() > expires_at:
+                    is_expired = True
+                    is_failed = True
+                    decline_reason = 'انتهت صلاحية الفاتورة'
+                elif inv_status == 'paid':
+                    is_success = True
+                elif inv_status == 'failed':
+                    is_failed = True
+        except Exception as e:
+            print(f"⚠️ خطأ في التحقق من الفاتورة: {e}")
+    
     if is_success:
         return render_template('payment/success.html', bot_username=BOT_USERNAME)
+    elif is_expired:
+        return render_template('payment/expired.html', 
+            bot_username=BOT_USERNAME,
+            error_msg=decline_reason)
     elif is_failed:
-        error_msg = decline_reason or status or "فشلت عملية الدفع"
+        error_msg = decline_reason or "فشلت عملية الدفع"
         return render_template('payment/failed.html', 
             bot_username=BOT_USERNAME, 
             error_msg=error_msg)
     else:
+        # الحالة pending - ننتظر
         return render_template('payment/pending.html',
             bot_username=BOT_USERNAME,
             order_id=order_id)
