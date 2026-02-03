@@ -1554,28 +1554,34 @@ _محاولة اختراق واضحة!_
                     print(f"🚫 محاولة دفع برابط منتهي الصلاحية! order_id: {order_id}, انتهى منذ {expired_minutes} دقيقة")
                     
                     # إرسال تنبيه مرة واحدة فقط (تجنب التكرار)
-                    already_alerted = original_payment.get('expired_alert_sent', False)
+                    # قراءة الحالة من Firebase مباشرة
+                    already_alerted = False
+                    try:
+                        fresh_doc = db.collection('pending_payments').document(order_id).get()
+                        if fresh_doc.exists:
+                            already_alerted = fresh_doc.to_dict().get('expired_alert_sent', False)
+                    except:
+                        pass
+                    
                     if not already_alerted:
                         try:
-                            # تحديث أنه تم إرسال التنبيه
-                            if order_id in pending_payments:
-                                pending_payments[order_id]['expired_alert_sent'] = True
+                            # تحديث أنه تم إرسال التنبيه أولاً
                             db.collection('pending_payments').document(order_id).update({
                                 'expired_alert_sent': True
                             })
+                            if order_id in pending_payments:
+                                pending_payments[order_id]['expired_alert_sent'] = True
                             
                             if BOT_ACTIVE:
                                 client_ip = req.headers.get('X-Forwarded-For', req.remote_addr)
                                 alert_msg = f"""
 ⚠️ *تنبيه - رابط منتهي الصلاحية*
 
-🔴 محاولة دفع برابط انتهت صلاحيته
-
 📋 Order ID: `{order_id}`
 💰 المبلغ: {amount} ريال
 ⏰ انتهى منذ: {expired_minutes} دقيقة
 
-_تم رفض الدفع - لن يتكرر هذا التنبيه_
+_تم رفض الدفع_
                                 """
                                 bot.send_message(ADMIN_ID, alert_msg, parse_mode='Markdown')
                         except:
