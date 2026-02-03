@@ -225,6 +225,7 @@ def wallet_pay():
         
         if response.status_code == 200 and result.get('redirect_url'):
             payment_url = result.get('redirect_url')
+            expires_at = time.time() + 600  # 10 دقائق
             
             # حفظ الطلب المعلق
             pending_payments[order_id] = {
@@ -234,7 +235,8 @@ def wallet_pay():
                 'phone': phone,
                 'payer_phone': formatted_phone,
                 'status': 'pending',
-                'created_at': time.time()
+                'created_at': time.time(),
+                'expires_at': expires_at
             }
             
             # حفظ في Firebase
@@ -246,7 +248,8 @@ def wallet_pay():
                     'phone': phone,
                     'payer_phone': formatted_phone,
                     'status': 'pending',
-                    'created_at': firestore.SERVER_TIMESTAMP
+                    'created_at': firestore.SERVER_TIMESTAMP,
+                    'expires_at': expires_at
                 })
             except Exception as e:
                 print(f"⚠️ خطأ في حفظ الطلب: {e}")

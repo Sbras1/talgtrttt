@@ -1542,7 +1542,8 @@ def create_customer_invoice(merchant_id, merchant_name, amount, customer_phone, 
                 'invoice_id': invoice_id,
                 'is_merchant_invoice': True,  # علامة أنها فاتورة تاجر
                 'status': 'pending',
-                'created_at': time.time()
+                'created_at': time.time(),
+                'expires_at': expires_at
             }
             
             # حفظ في Firebase
@@ -1566,7 +1567,8 @@ def create_customer_invoice(merchant_id, merchant_name, amount, customer_phone, 
                     'invoice_id': invoice_id,
                     'is_merchant_invoice': True,
                     'status': 'pending',
-                    'created_at': firestore.SERVER_TIMESTAMP
+                    'created_at': firestore.SERVER_TIMESTAMP,
+                    'expires_at': expires_at
                 })
             except Exception as e:
                 print(f"⚠️ خطأ في حفظ الفاتورة في Firebase: {e}")
