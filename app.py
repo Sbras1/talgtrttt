@@ -1546,7 +1546,33 @@ _محاولة اختراق واضحة!_
                         pass
                     return jsonify({'status': 'error', 'message': 'Amount mismatch'}), 403
             
-            # 3️⃣ 🔐 التحقق من صحة الـ Hash (Signature Verification)
+            # 3️⃣ ⏰ التحقق من انتهاء صلاحية رابط الدفع
+            if original_payment:
+                expires_at = original_payment.get('expires_at', 0)
+                if expires_at and time.time() > expires_at:
+                    expired_minutes = int((time.time() - expires_at) / 60)
+                    print(f"🚫 محاولة دفع برابط منتهي الصلاحية! order_id: {order_id}, انتهى منذ {expired_minutes} دقيقة")
+                    try:
+                        if BOT_ACTIVE:
+                            client_ip = req.headers.get('X-Forwarded-For', req.remote_addr)
+                            alert_msg = f"""
+⚠️ *تنبيه أمني - رابط منتهي الصلاحية!*
+
+🔴 محاولة دفع برابط انتهت صلاحيته!
+
+📋 Order ID: `{order_id}`
+💰 المبلغ: {amount} ريال
+⏰ انتهى منذ: {expired_minutes} دقيقة
+🌐 IP: `{client_ip}`
+
+_تم رفض الدفع تلقائياً_
+                            """
+                            bot.send_message(ADMIN_ID, alert_msg, parse_mode='Markdown')
+                    except:
+                        pass
+                    return jsonify({'status': 'error', 'message': 'Payment link expired'}), 403
+            
+            # 4️⃣ 🔐 التحقق من صحة الـ Hash (Signature Verification)
             if received_hash and original_payment:
                 # حساب الـ Hash المتوقع بنفس طريقة EdfaPay
                 # EdfaPay ترسل hash = SHA1(MD5(order_id + order_amount + currency + status + trans_id + password))
