@@ -1552,24 +1552,35 @@ _محاولة اختراق واضحة!_
                 if expires_at and time.time() > expires_at:
                     expired_minutes = int((time.time() - expires_at) / 60)
                     print(f"🚫 محاولة دفع برابط منتهي الصلاحية! order_id: {order_id}, انتهى منذ {expired_minutes} دقيقة")
-                    try:
-                        if BOT_ACTIVE:
-                            client_ip = req.headers.get('X-Forwarded-For', req.remote_addr)
-                            alert_msg = f"""
-⚠️ *تنبيه أمني - رابط منتهي الصلاحية!*
+                    
+                    # إرسال تنبيه مرة واحدة فقط (تجنب التكرار)
+                    already_alerted = original_payment.get('expired_alert_sent', False)
+                    if not already_alerted:
+                        try:
+                            # تحديث أنه تم إرسال التنبيه
+                            if order_id in pending_payments:
+                                pending_payments[order_id]['expired_alert_sent'] = True
+                            db.collection('pending_payments').document(order_id).update({
+                                'expired_alert_sent': True
+                            })
+                            
+                            if BOT_ACTIVE:
+                                client_ip = req.headers.get('X-Forwarded-For', req.remote_addr)
+                                alert_msg = f"""
+⚠️ *تنبيه - رابط منتهي الصلاحية*
 
-🔴 محاولة دفع برابط انتهت صلاحيته!
+🔴 محاولة دفع برابط انتهت صلاحيته
 
 📋 Order ID: `{order_id}`
 💰 المبلغ: {amount} ريال
 ⏰ انتهى منذ: {expired_minutes} دقيقة
-🌐 IP: `{client_ip}`
 
-_تم رفض الدفع تلقائياً_
-                            """
-                            bot.send_message(ADMIN_ID, alert_msg, parse_mode='Markdown')
-                    except:
-                        pass
+_تم رفض الدفع - لن يتكرر هذا التنبيه_
+                                """
+                                bot.send_message(ADMIN_ID, alert_msg, parse_mode='Markdown')
+                        except:
+                            pass
+                    
                     return jsonify({'status': 'error', 'message': 'Payment link expired'}), 403
             
             # 4️⃣ 🔐 التحقق من صحة الـ Hash (Signature Verification)
