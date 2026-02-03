@@ -1547,14 +1547,21 @@ _محاولة اختراق واضحة!_
                     return jsonify({'status': 'error', 'message': 'Amount mismatch'}), 403
             
             # 3️⃣ ⏰ التحقق من انتهاء صلاحية رابط الدفع
+            # ⚠️ مهم: نرفض فقط إذا لم يكتمل الدفع بعد
+            # إذا الدفع SUCCESS/SETTLED نقبله لأن المال خُصم فعلياً
             if original_payment:
                 expires_at = original_payment.get('expires_at', 0)
-                if expires_at and time.time() > expires_at:
+                payment_status = str(status).upper()
+                payment_result = str(data.get('result', '')).upper()
+                
+                # الدفع الناجح نقبله حتى لو الرابط منتهي
+                is_successful_payment = payment_status in ['SETTLED', 'SUCCESS', 'CAPTURED', 'APPROVED'] or payment_result == 'SUCCESS'
+                
+                if expires_at and time.time() > expires_at and not is_successful_payment:
                     expired_minutes = int((time.time() - expires_at) / 60)
                     print(f"🚫 محاولة دفع برابط منتهي الصلاحية! order_id: {order_id}, انتهى منذ {expired_minutes} دقيقة")
                     
                     # إرسال تنبيه مرة واحدة فقط (تجنب التكرار)
-                    # قراءة الحالة من Firebase مباشرة
                     already_alerted = False
                     try:
                         fresh_doc = db.collection('pending_payments').document(order_id).get()
@@ -1565,7 +1572,6 @@ _محاولة اختراق واضحة!_
                     
                     if not already_alerted:
                         try:
-                            # تحديث أنه تم إرسال التنبيه أولاً
                             db.collection('pending_payments').document(order_id).update({
                                 'expired_alert_sent': True
                             })
@@ -1573,15 +1579,12 @@ _محاولة اختراق واضحة!_
                                 pending_payments[order_id]['expired_alert_sent'] = True
                             
                             if BOT_ACTIVE:
-                                client_ip = req.headers.get('X-Forwarded-For', req.remote_addr)
                                 alert_msg = f"""
-⚠️ *تنبيه - رابط منتهي الصلاحية*
+⚠️ *رابط منتهي - تم الرفض*
 
-📋 Order ID: `{order_id}`
+📋 Order: `{order_id}`
 💰 المبلغ: {amount} ريال
 ⏰ انتهى منذ: {expired_minutes} دقيقة
-
-_تم رفض الدفع_
                                 """
                                 bot.send_message(ADMIN_ID, alert_msg, parse_mode='Markdown')
                         except:
