@@ -61,6 +61,12 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
     elif not phone.startswith('+'):
         phone = '+971' + phone
     
+    # تنسيق البريد الإلكتروني - يجب أن يكون صحيحاً لتابي
+    if not customer_email or '@temp' in str(customer_email):
+        # استخدام بريد افتراضي بناءً على رقم الجوال
+        phone_digits = ''.join(filter(str.isdigit, phone))[-9:]  # آخر 9 أرقام
+        customer_email = f"customer{phone_digits}@gmail.com"
+    
     headers = {
         "Authorization": f"Bearer {TABBY_SK}",
         "Content-Type": "application/json",
@@ -75,7 +81,7 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
             "buyer": {
                 "phone": phone,
                 "name": customer_name,
-                "email": customer_email or f"{phone.replace('+', '')}@temp.tabby.ai"
+                "email": customer_email
             },
             "buyer_history": {
                 "registered_since": "2024-01-01T00:00:00Z",
