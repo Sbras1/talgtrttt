@@ -359,7 +359,15 @@ app.register_blueprint(profile_bp)
 set_merchant_invoices(merchant_invoices)
 app.register_blueprint(payment_bp)
 
-print("✅ تم تسجيل جميع Blueprints (السلة، المحفظة، لوحة التحكم، API، Web, Auth, Profile, Payment)")
+# تسجيل Tabby Blueprint
+try:
+    from routes.tabby_routes import tabby_bp
+    app.register_blueprint(tabby_bp)
+    print("✅ تم تسجيل Tabby Blueprint")
+except Exception as e:
+    print(f"⚠️ فشل تسجيل Tabby Blueprint: {e}")
+
+print("✅ تم تسجيل جميع Blueprints (السلة، المحفظة، لوحة التحكم، API، Web, Auth, Profile, Payment, Tabby)")
 
 # دالة تحميل جميع البيانات من Firebase عند بدء التطبيق
 def load_all_data_from_firebase():

@@ -73,3 +73,9 @@ DEFAULT_CATEGORIES = [
 DISPLAY_SETTINGS = {
     'categories_columns': 3
 }
+
+# === إعدادات تابي (Tabby) للدفع بالتقسيط ===
+TABBY_PK = os.environ.get("TABBY_PK", "")  # Public Key
+TABBY_SK = os.environ.get("TABBY_SK", "")  # Secret Key
+TABBY_MERCHANT_CODE = os.environ.get("TABBY_MERCHANT_CODE", "")  # Merchant Code
+TABBY_API_URL = "https://api.tabby.ai/api/v2/checkout"
