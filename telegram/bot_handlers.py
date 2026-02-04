@@ -1290,64 +1290,46 @@ def handle_user_state_message(message):
             
             # التحقق من الحدود
             if amount < 1:
-                return bot.reply_to(message, "❌ الحد الأدنى للفاتورة هو 1 ريال")
+                return bot.reply_to(message, "❌ الحد الأدنى للفاتورة هو 1 درهم")
             if amount > 10000:
-                return bot.reply_to(message, "❌ الحد الأقصى للفاتورة هو 10,000 ريال")
+                return bot.reply_to(message, "❌ الحد الأقصى للفاتورة هو 10,000 درهم")
             
-            # إزالة حالة المستخدم
-            del user_states[user_id]
-            
-            # إنشاء معرف فريد للفاتورة
-            invoice_id = generate_invoice_id()
-            invoice_url = f"{SITE_URL}/invoice/{invoice_id}"
-            
-            # حفظ الفاتورة المعلقة (بدون رقم هاتف بعد)
-            merchant_invoices[invoice_id] = {
-                'invoice_id': invoice_id,
-                'merchant_id': user_id,
-                'merchant_name': merchant_name,
+            # حفظ المبلغ في حالة المستخدم للخطوة التالية
+            user_states[user_id] = {
+                'state': 'waiting_payment_method',
                 'amount': amount,
-                'customer_phone': None,
-                'status': 'waiting_payment',
+                'merchant_name': merchant_name,
                 'created_at': time.time()
             }
             
-            # حفظ في Firebase
-            try:
-                db.collection('merchant_invoices').document(invoice_id).set({
-                    'invoice_id': invoice_id,
-                    'merchant_id': user_id,
-                    'merchant_name': merchant_name,
-                    'amount': amount,
-                    'customer_phone': None,
-                    'status': 'waiting_payment',
-                    'created_at': firestore.SERVER_TIMESTAMP
-                })
-            except Exception as e:
-                print(f"⚠️ خطأ في حفظ الفاتورة: {e}")
+            # عرض خيارات بوابة الدفع
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            btn_edfapay = types.InlineKeyboardButton("🏦 بطاقة ائتمان (EdfaPay)", callback_data="invoice_method_edfapay")
+            btn_tabby = types.InlineKeyboardButton("📅 تقسيط تابي (4 دفعات)", callback_data="invoice_method_tabby")
+            btn_cancel = types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_invoice")
             
-            # ✅ إشعار المالك بإنشاء فاتورة جديدة
-            try:
-                notify_invoice_created(
-                    merchant_id=user_id,
-                    merchant_name=merchant_name,
-                    amount=amount,
-                    invoice_id=invoice_id,
-                    customer_phone=None
-                )
-            except:
-                pass
+            # تابي متاح فقط للمبالغ 100-5000
+            if 100 <= amount <= 5000:
+                markup.add(btn_edfapay, btn_tabby, btn_cancel)
+                tabby_note = f"\n\n💡 *تابي:* قسّط {amount} درهم على 4 دفعات = {amount/4:.2f} درهم/شهر"
+            else:
+                markup.add(btn_edfapay, btn_cancel)
+                tabby_note = "\n\n⚠️ تابي متاح للمبالغ من 100 إلى 5000 درهم فقط"
             
-            # إرسال رابط الفاتورة للتاجر
             bot.send_message(
                 message.chat.id,
-                f"✅ *تم إنشاء الفاتورة بنجاح!*\n\n"
-                f"💰 المبلغ: {amount} ريال\n"
-                f"🆔 رقم الفاتورة: `{invoice_id}`\n\n"
-                f"🔗 *رابط الفاتورة:*\n`{invoice_url}`\n\n"
-                f"📤 أرسل هذا الرابط للعميل للدفع",
+                f"💰 *المبلغ:* {amount} درهم\n\n"
+                f"🔽 *اختر بوابة الدفع:*{tabby_note}",
+                reply_markup=markup,
                 parse_mode="Markdown"
             )
+            return
+        
+        # === حالة انتظار اختيار بوابة الدفع (للرسائل النصية - احتياطي) ===
+        elif state == 'waiting_payment_method':
+            # هذه الحالة تُعالج عبر callback_query أدناه
+            bot.reply_to(message, "⬆️ الرجاء اختيار بوابة الدفع من الأزرار أعلاه")
+            return
                 
     except Exception as e:
         print(f"❌ خطأ في handle_user_state_message: {e}")
@@ -1451,6 +1433,207 @@ def handle_cancel_invoice(call):
         chat_id=call.message.chat.id,
         message_id=call.message.message_id
     )
+
+# === معالج اختيار بوابة الدفع EdfaPay ===
+@bot.callback_query_handler(func=lambda call: call.data == "invoice_method_edfapay")
+def handle_invoice_edfapay(call):
+    """إنشاء فاتورة عبر EdfaPay"""
+    user_id = str(call.from_user.id)
+    
+    state_data = user_states.get(user_id, {})
+    if state_data.get('state') != 'waiting_payment_method':
+        bot.answer_callback_query(call.id, "انتهت الجلسة، حاول مجدداً")
+        return
+    
+    amount = state_data.get('amount')
+    merchant_name = state_data.get('merchant_name', call.from_user.first_name)
+    
+    # إزالة حالة المستخدم
+    del user_states[user_id]
+    
+    # إنشاء معرف فريد للفاتورة
+    invoice_id = generate_invoice_id()
+    invoice_url = f"{SITE_URL}/invoice/{invoice_id}"
+    
+    # حفظ الفاتورة المعلقة
+    merchant_invoices[invoice_id] = {
+        'invoice_id': invoice_id,
+        'merchant_id': user_id,
+        'merchant_name': merchant_name,
+        'amount': amount,
+        'customer_phone': None,
+        'status': 'waiting_payment',
+        'payment_method': 'edfapay',
+        'created_at': time.time()
+    }
+    
+    # حفظ في Firebase
+    try:
+        db.collection('merchant_invoices').document(invoice_id).set({
+            'invoice_id': invoice_id,
+            'merchant_id': user_id,
+            'merchant_name': merchant_name,
+            'amount': amount,
+            'customer_phone': None,
+            'status': 'waiting_payment',
+            'payment_method': 'edfapay',
+            'created_at': firestore.SERVER_TIMESTAMP
+        })
+    except Exception as e:
+        print(f"⚠️ خطأ في حفظ الفاتورة: {e}")
+    
+    # إشعار المالك
+    try:
+        notify_invoice_created(
+            merchant_id=user_id,
+            merchant_name=merchant_name,
+            amount=amount,
+            invoice_id=invoice_id,
+            customer_phone=None
+        )
+    except:
+        pass
+    
+    bot.answer_callback_query(call.id, "✅ تم إنشاء الفاتورة")
+    bot.edit_message_text(
+        f"✅ *تم إنشاء الفاتورة بنجاح!*\n\n"
+        f"💳 *بوابة الدفع:* EdfaPay (بطاقة)\n"
+        f"💰 *المبلغ:* {amount} درهم\n"
+        f"🆔 *رقم الفاتورة:* `{invoice_id}`\n\n"
+        f"🔗 *رابط الفاتورة:*\n`{invoice_url}`\n\n"
+        f"📤 أرسل هذا الرابط للعميل للدفع",
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        parse_mode="Markdown"
+    )
+
+# === معالج اختيار بوابة الدفع Tabby ===
+@bot.callback_query_handler(func=lambda call: call.data == "invoice_method_tabby")
+def handle_invoice_tabby(call):
+    """إنشاء فاتورة عبر Tabby (تقسيط)"""
+    user_id = str(call.from_user.id)
+    
+    state_data = user_states.get(user_id, {})
+    if state_data.get('state') != 'waiting_payment_method':
+        bot.answer_callback_query(call.id, "انتهت الجلسة، حاول مجدداً")
+        return
+    
+    amount = state_data.get('amount')
+    merchant_name = state_data.get('merchant_name', call.from_user.first_name)
+    
+    # التحقق من حدود تابي
+    if amount < 100 or amount > 5000:
+        bot.answer_callback_query(call.id, "❌ تابي متاح للمبالغ 100-5000 درهم فقط")
+        return
+    
+    # إزالة حالة المستخدم
+    del user_states[user_id]
+    
+    # إنشاء معرف فريد للفاتورة
+    invoice_id = generate_invoice_id()
+    order_id = f"TABBY_{invoice_id}_{int(time.time())}"
+    
+    # إنشاء جلسة تابي
+    try:
+        from services.tabby_service import create_tabby_session, is_tabby_configured
+        
+        if not is_tabby_configured():
+            bot.answer_callback_query(call.id, "❌ تابي غير مُعد")
+            bot.send_message(call.message.chat.id, "⚠️ تابي غير مُعد حالياً. استخدم EdfaPay.")
+            return
+        
+        result = create_tabby_session(
+            order_id=order_id,
+            amount=amount,
+            customer_phone="0501234567",  # سيتم تحديثه من العميل
+            customer_name=merchant_name,
+            description=f"فاتورة {invoice_id}"
+        )
+        
+        if result.get('success'):
+            checkout_url = result.get('checkout_url')
+            
+            # حفظ الفاتورة المعلقة
+            merchant_invoices[invoice_id] = {
+                'invoice_id': invoice_id,
+                'order_id': order_id,
+                'merchant_id': user_id,
+                'merchant_name': merchant_name,
+                'amount': amount,
+                'customer_phone': None,
+                'status': 'waiting_payment',
+                'payment_method': 'tabby',
+                'tabby_url': checkout_url,
+                'created_at': time.time(),
+                'expires_at': time.time() + 1800  # 30 دقيقة
+            }
+            
+            # حفظ في Firebase
+            try:
+                db.collection('merchant_invoices').document(invoice_id).set({
+                    'invoice_id': invoice_id,
+                    'order_id': order_id,
+                    'merchant_id': user_id,
+                    'merchant_name': merchant_name,
+                    'amount': amount,
+                    'customer_phone': None,
+                    'status': 'waiting_payment',
+                    'payment_method': 'tabby',
+                    'tabby_url': checkout_url,
+                    'created_at': firestore.SERVER_TIMESTAMP,
+                    'expires_at': time.time() + 1800
+                })
+                
+                # حفظ في pending_payments أيضاً للـ webhook
+                db.collection('pending_payments').document(order_id).set({
+                    'user_id': user_id,
+                    'amount': amount,
+                    'order_id': order_id,
+                    'invoice_id': invoice_id,
+                    'payment_method': 'tabby',
+                    'status': 'pending',
+                    'created_at': firestore.SERVER_TIMESTAMP,
+                    'expires_at': time.time() + 1800
+                })
+            except Exception as e:
+                print(f"⚠️ خطأ في حفظ فاتورة تابي: {e}")
+            
+            # إشعار المالك
+            try:
+                notify_invoice_created(
+                    merchant_id=user_id,
+                    merchant_name=merchant_name,
+                    amount=amount,
+                    invoice_id=invoice_id,
+                    customer_phone=None
+                )
+            except:
+                pass
+            
+            monthly = amount / 4
+            bot.answer_callback_query(call.id, "✅ تم إنشاء فاتورة تابي")
+            bot.edit_message_text(
+                f"✅ *تم إنشاء فاتورة تابي بنجاح!*\n\n"
+                f"📅 *بوابة الدفع:* تابي (تقسيط 4 دفعات)\n"
+                f"💰 *المبلغ:* {amount} درهم\n"
+                f"💵 *القسط الشهري:* {monthly:.2f} درهم\n"
+                f"🆔 *رقم الفاتورة:* `{invoice_id}`\n\n"
+                f"🔗 *رابط الدفع:*\n{checkout_url}\n\n"
+                f"📤 أرسل هذا الرابط للعميل للدفع بالتقسيط\n\n"
+                f"⏰ صالح لمدة 30 دقيقة",
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                parse_mode="Markdown"
+            )
+        else:
+            error = result.get('error', 'خطأ غير معروف')
+            bot.answer_callback_query(call.id, "❌ فشل إنشاء فاتورة تابي")
+            bot.send_message(call.message.chat.id, f"❌ فشل إنشاء فاتورة تابي:\n{error}")
+            
+    except Exception as e:
+        print(f"❌ خطأ في إنشاء فاتورة تابي: {e}")
+        bot.answer_callback_query(call.id, "❌ حدث خطأ")
+        bot.send_message(call.message.chat.id, f"❌ حدث خطأ: {e}")
 
 def generate_invoice_id():
     """توليد معرف قصير وفريد للفاتورة"""
