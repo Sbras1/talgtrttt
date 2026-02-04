@@ -1336,42 +1336,48 @@ def handle_user_state_message(message):
             phone = message.text.strip()
             amount = state_data.get('amount')
             merchant_name = state_data.get('merchant_name', message.from_user.first_name)
+            country = state_data.get('country', 'SA')  # افتراضي: السعودية
+            currency = state_data.get('currency', 'ريال')
+            phone_prefix = state_data.get('phone_prefix', '966')
             
-            # تنظيف وتنسيق رقم الجوال الإماراتي
+            # تنظيف وتنسيق رقم الجوال
             phone = phone.replace(' ', '').replace('-', '').replace('+', '')
             
-            # التحقق من صحة الرقم
-            if phone.startswith('971'):
+            # التحقق من صحة الرقم حسب البلد
+            if phone.startswith(phone_prefix):
                 phone = phone  # الرقم صحيح
             elif phone.startswith('0'):
-                phone = '971' + phone[1:]  # تحويل 05x إلى 9715x
+                phone = phone_prefix + phone[1:]  # تحويل 05x إلى prefix5x
             elif phone.startswith('5'):
-                phone = '971' + phone  # تحويل 5x إلى 9715x
+                phone = phone_prefix + phone  # تحويل 5x إلى prefix5x
             else:
-                bot.reply_to(message, "❌ رقم غير صحيح!\n\nأدخل رقم إماراتي مثل:\n`0501234567` أو `971501234567`", parse_mode="Markdown")
+                country_name = 'سعودي' if country == 'SA' else 'إماراتي'
+                bot.reply_to(message, f"❌ رقم غير صحيح!\n\nأدخل رقم {country_name} مثل:\n`0501234567` أو `{phone_prefix}501234567`", parse_mode="Markdown")
                 return
             
-            # التحقق من طول الرقم
-            if len(phone) != 12:  # 971 + 9 أرقام
-                bot.reply_to(message, "❌ رقم غير صحيح!\n\nيجب أن يكون الرقم 9 أرقام بعد 971\nمثال: `971501234567`", parse_mode="Markdown")
+            # التحقق من طول الرقم (prefix + 9 أرقام)
+            expected_length = len(phone_prefix) + 9
+            if len(phone) != expected_length:
+                bot.reply_to(message, f"❌ رقم غير صحيح!\n\nيجب أن يكون الرقم 9 أرقام بعد {phone_prefix}\nمثال: `{phone_prefix}501234567`", parse_mode="Markdown")
                 return
             
             # إزالة حالة المستخدم
             del user_states[user_id]
             
             # إرسال رسالة انتظار
-            wait_msg = bot.send_message(message.chat.id, "⏳ جاري إنشاء فاتورة تابي...")
+            country_name = 'السعودية' if country == 'SA' else 'الإمارات'
+            wait_msg = bot.send_message(message.chat.id, f"⏳ جاري إنشاء فاتورة تابي {country_name}...")
             
             # إنشاء معرف فريد للفاتورة
             invoice_id = generate_invoice_id()
-            order_id = f"TABBY_{invoice_id}_{int(time.time())}"
+            order_id = f"TABBY_{country}_{invoice_id}_{int(time.time())}"
             
             # إنشاء جلسة تابي
             try:
                 from services.tabby_service import create_tabby_session, is_tabby_configured
                 
-                if not is_tabby_configured():
-                    bot.edit_message_text("⚠️ تابي غير مُعد حالياً. استخدم EdfaPay.", 
+                if not is_tabby_configured(country):
+                    bot.edit_message_text(f"⚠️ تابي {country_name} غير مُعد حالياً.", 
                                          chat_id=message.chat.id, message_id=wait_msg.message_id)
                     return
                 
@@ -1380,7 +1386,8 @@ def handle_user_state_message(message):
                     amount=amount,
                     customer_phone=phone,
                     customer_name=merchant_name,
-                    description=f"فاتورة {invoice_id}"
+                    description=f"فاتورة {invoice_id}",
+                    country=country
                 )
                 
                 if result.get('success'):
@@ -1393,6 +1400,8 @@ def handle_user_state_message(message):
                         'merchant_id': user_id,
                         'merchant_name': merchant_name,
                         'amount': amount,
+                        'currency': currency,
+                        'country': country,
                         'customer_phone': phone,
                         'status': 'waiting_payment',
                         'payment_method': 'tabby',
@@ -1409,6 +1418,8 @@ def handle_user_state_message(message):
                             'merchant_id': user_id,
                             'merchant_name': merchant_name,
                             'amount': amount,
+                            'currency': currency,
+                            'country': country,
                             'customer_phone': phone,
                             'status': 'waiting_payment',
                             'payment_method': 'tabby',
@@ -1424,6 +1435,7 @@ def handle_user_state_message(message):
                             'invoice_id': invoice_id,
                             'customer_phone': phone,
                             'payment_method': 'tabby',
+                            'country': country,
                             'status': 'pending',
                             'created_at': firestore.SERVER_TIMESTAMP,
                             'expires_at': time.time() + 1800
@@ -1446,9 +1458,10 @@ def handle_user_state_message(message):
                     monthly = amount / 4
                     bot.edit_message_text(
                         f"✅ <b>تم إنشاء فاتورة تابي بنجاح!</b>\n\n"
+                        f"🌍 <b>البلد:</b> {country_name}\n"
                         f"📅 <b>بوابة الدفع:</b> تابي (تقسيط 4 دفعات)\n"
-                        f"💰 <b>المبلغ:</b> {amount} درهم\n"
-                        f"💵 <b>القسط الشهري:</b> {monthly:.2f} درهم\n"
+                        f"💰 <b>المبلغ:</b> {amount} {currency}\n"
+                        f"💵 <b>القسط الشهري:</b> {monthly:.2f} {currency}\n"
                         f"📱 <b>رقم العميل:</b> +{phone}\n"
                         f"🆔 <b>رقم الفاتورة:</b> <code>{invoice_id}</code>\n\n"
                         f"🔗 <b>رابط الدفع:</b>\n<code>{checkout_url}</code>\n\n"
@@ -1648,7 +1661,7 @@ def handle_invoice_edfapay(call):
 # === معالج اختيار بوابة الدفع Tabby ===
 @bot.callback_query_handler(func=lambda call: call.data == "invoice_method_tabby")
 def handle_invoice_tabby(call):
-    """طلب رقم الجوال لإنشاء فاتورة تابي"""
+    """عرض خيارات البلد لتابي (السعودية أو الإمارات)"""
     user_id = str(call.from_user.id)
     
     state_data = user_states.get(user_id, {})
@@ -1661,14 +1674,87 @@ def handle_invoice_tabby(call):
     
     # التحقق من حدود تابي
     if amount < 100 or amount > 5000:
-        bot.answer_callback_query(call.id, "❌ تابي متاح للمبالغ 100-5000 درهم فقط")
+        bot.answer_callback_query(call.id, "❌ تابي متاح للمبالغ 100-5000 فقط")
         return
+    
+    # تحديث حالة المستخدم لانتظار اختيار البلد
+    user_states[user_id] = {
+        'state': 'waiting_tabby_country',
+        'amount': amount,
+        'merchant_name': merchant_name,
+        'created_at': time.time()
+    }
+    
+    # التحقق من البلدان المتاحة
+    from services.tabby_service import get_available_countries
+    available = get_available_countries()
+    
+    # إنشاء أزرار اختيار البلد
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    
+    # إضافة أزرار البلدان المتاحة فقط
+    buttons = []
+    for c in available:
+        emoji = "🇸🇦" if c['code'] == 'SA' else "🇦🇪"
+        btn = types.InlineKeyboardButton(f"{emoji} {c['name']} ({c['currency']})", callback_data=f"tabby_country_{c['code']}")
+        buttons.append(btn)
+    
+    if not buttons:
+        bot.answer_callback_query(call.id, "❌ تابي غير مُعد حالياً")
+        return
+    
+    markup.add(*buttons)
+    btn_cancel = types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_invoice")
+    markup.add(btn_cancel)
+    
+    monthly = amount / 4
+    bot.answer_callback_query(call.id)
+    bot.edit_message_text(
+        f"📅 *فاتورة تابي - تقسيط*\n\n"
+        f"💰 المبلغ: {amount}\n"
+        f"💵 القسط الشهري: {monthly:.2f} × 4\n\n"
+        f"🌍 *اختر بلد العميل:*",
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+# === معالج اختيار بلد تابي ===
+@bot.callback_query_handler(func=lambda call: call.data.startswith("tabby_country_"))
+def handle_tabby_country_selection(call):
+    """معالجة اختيار بلد تابي وطلب رقم الجوال"""
+    user_id = str(call.from_user.id)
+    country_code = call.data.replace("tabby_country_", "")  # SA أو AE
+    
+    state_data = user_states.get(user_id, {})
+    if state_data.get('state') != 'waiting_tabby_country':
+        bot.answer_callback_query(call.id, "انتهت الجلسة، حاول مجدداً")
+        return
+    
+    amount = state_data.get('amount')
+    merchant_name = state_data.get('merchant_name', call.from_user.first_name)
+    
+    # تحديد إعدادات البلد
+    if country_code == 'SA':
+        country_name = 'السعودية'
+        currency = 'ريال'
+        phone_example = '0501234567 أو 966501234567'
+        phone_prefix = '966'
+    else:
+        country_name = 'الإمارات'
+        currency = 'درهم'
+        phone_example = '0501234567 أو 971501234567'
+        phone_prefix = '971'
     
     # تحديث حالة المستخدم لانتظار رقم الجوال
     user_states[user_id] = {
         'state': 'waiting_tabby_phone',
         'amount': amount,
         'merchant_name': merchant_name,
+        'country': country_code,
+        'currency': currency,
+        'phone_prefix': phone_prefix,
         'created_at': time.time()
     }
     
@@ -1680,11 +1766,11 @@ def handle_invoice_tabby(call):
     monthly = amount / 4
     bot.answer_callback_query(call.id)
     bot.edit_message_text(
-        f"📅 *فاتورة تابي - تقسيط*\n\n"
-        f"💰 المبلغ: {amount} درهم\n"
-        f"💵 القسط الشهري: {monthly:.2f} درهم × 4\n\n"
-        f"📱 *أدخل رقم جوال العميل الإماراتي:*\n\n"
-        f"📌 مثال: `0501234567` أو `971501234567`",
+        f"📅 *فاتورة تابي - {country_name}*\n\n"
+        f"💰 المبلغ: {amount} {currency}\n"
+        f"💵 القسط الشهري: {monthly:.2f} {currency} × 4\n\n"
+        f"📱 *أدخل رقم جوال العميل:*\n\n"
+        f"📌 مثال: `{phone_example}`",
         chat_id=call.message.chat.id,
         message_id=call.message.message_id,
         reply_markup=markup,

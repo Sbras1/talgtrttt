@@ -4,21 +4,64 @@
 خدمة تابي (Tabby) للدفع بالتقسيط
 ================================
 اشتري الآن وادفع لاحقاً
+يدعم: السعودية (SAR) والإمارات (AED)
 """
 
 import requests
 import time
 import hashlib
-from config import TABBY_PK, TABBY_SK, TABBY_MERCHANT_CODE, TABBY_API_URL, SITE_URL
+from config import (
+    TABBY_SA_PK, TABBY_SA_SK, TABBY_SA_MERCHANT_CODE,
+    TABBY_AE_PK, TABBY_AE_SK, TABBY_AE_MERCHANT_CODE,
+    TABBY_PK, TABBY_SK, TABBY_MERCHANT_CODE,
+    TABBY_API_URL, SITE_URL
+)
 
 # الحد الأدنى والأقصى لتابي
-TABBY_MIN_AMOUNT = 100  # ريال
-TABBY_MAX_AMOUNT = 5000  # ريال
+TABBY_MIN_AMOUNT = 100  # ريال/درهم
+TABBY_MAX_AMOUNT = 5000  # ريال/درهم
+
+# إعدادات البلدان
+TABBY_COUNTRIES = {
+    'SA': {
+        'pk': TABBY_SA_PK,
+        'sk': TABBY_SA_SK,
+        'merchant_code': TABBY_SA_MERCHANT_CODE,
+        'currency': 'SAR',
+        'phone_code': '+966',
+        'name': 'السعودية'
+    },
+    'AE': {
+        'pk': TABBY_AE_PK,
+        'sk': TABBY_AE_SK,
+        'merchant_code': TABBY_AE_MERCHANT_CODE,
+        'currency': 'AED',
+        'phone_code': '+971',
+        'name': 'الإمارات'
+    }
+}
 
 
-def is_tabby_configured():
-    """التحقق من إعداد مفاتيح تابي"""
+def is_tabby_configured(country='SA'):
+    """التحقق من إعداد مفاتيح تابي لبلد معين"""
+    if country in TABBY_COUNTRIES:
+        config = TABBY_COUNTRIES[country]
+        return bool(config['sk'] and config['merchant_code'])
+    # للتوافق القديم
     return bool(TABBY_SK and TABBY_MERCHANT_CODE)
+
+
+def get_available_countries():
+    """الحصول على البلدان المتاحة لتابي"""
+    available = []
+    for code, config in TABBY_COUNTRIES.items():
+        if config['sk'] and config['merchant_code']:
+            available.append({
+                'code': code,
+                'name': config['name'],
+                'currency': config['currency']
+            })
+    return available
 
 
 def is_amount_eligible(amount):
@@ -26,40 +69,58 @@ def is_amount_eligible(amount):
     return TABBY_MIN_AMOUNT <= float(amount) <= TABBY_MAX_AMOUNT
 
 
-def create_tabby_session(order_id, amount, customer_phone, customer_name="عميل", customer_email=None, description="شحن رصيد"):
+def create_tabby_session(order_id, amount, customer_phone, customer_name="عميل", customer_email=None, description="شحن رصيد", country='SA'):
     """
     إنشاء جلسة دفع تابي
     
     Args:
         order_id: معرف الطلب
-        amount: المبلغ (يجب أن يكون بين 100-5000 ريال)
+        amount: المبلغ (يجب أن يكون بين 100-5000)
         customer_phone: رقم الجوال
         customer_name: اسم العميل
         customer_email: البريد الإلكتروني (اختياري)
         description: وصف الطلب
+        country: البلد ('SA' للسعودية أو 'AE' للإمارات)
         
     Returns:
         dict: نتيجة الإنشاء تحتوي على redirect_url أو خطأ
     """
     
-    if not is_tabby_configured():
+    # الحصول على إعدادات البلد
+    if country in TABBY_COUNTRIES:
+        config = TABBY_COUNTRIES[country]
+        sk = config['sk']
+        merchant_code = config['merchant_code']
+        currency = config['currency']
+        phone_code = config['phone_code']
+    else:
+        # افتراضي: السعودية
+        sk = TABBY_SK
+        merchant_code = TABBY_MERCHANT_CODE
+        currency = 'SAR'
+        phone_code = '+966'
+    
+    if not sk or not merchant_code:
         return {
             'success': False,
-            'error': 'تابي غير مُعد. يرجى إضافة المفاتيح.'
+            'error': f'تابي {TABBY_COUNTRIES.get(country, {}).get("name", country)} غير مُعد. يرجى إضافة المفاتيح.'
         }
     
     if not is_amount_eligible(amount):
+        currency_name = 'ريال' if currency == 'SAR' else 'درهم'
         return {
             'success': False,
-            'error': f'المبلغ يجب أن يكون بين {TABBY_MIN_AMOUNT} و {TABBY_MAX_AMOUNT} ريال'
+            'error': f'المبلغ يجب أن يكون بين {TABBY_MIN_AMOUNT} و {TABBY_MAX_AMOUNT} {currency_name}'
         }
     
     # تنسيق رقم الجوال
     phone = str(customer_phone).strip()
     if phone.startswith('0'):
-        phone = '+971' + phone[1:]
+        phone = phone_code + phone[1:]
+    elif phone.startswith('5') and len(phone) == 9:
+        phone = phone_code + phone
     elif not phone.startswith('+'):
-        phone = '+971' + phone
+        phone = phone_code + phone
     
     # تنسيق البريد الإلكتروني - يجب أن يكون صحيحاً لتابي
     if not customer_email or '@temp' in str(customer_email):
@@ -68,7 +129,7 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
         customer_email = f"customer{phone_digits}@gmail.com"
     
     headers = {
-        "Authorization": f"Bearer {TABBY_SK}",
+        "Authorization": f"Bearer {sk}",
         "Content-Type": "application/json",
         "Accept": "application/json"
     }
@@ -76,7 +137,7 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
     payload = {
         "payment": {
             "amount": str(amount),
-            "currency": "AED",
+            "currency": currency,
             "description": description,
             "buyer": {
                 "phone": phone,
@@ -100,7 +161,7 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
             "order_history": []
         },
         "lang": "ar",
-        "merchant_code": TABBY_MERCHANT_CODE,
+        "merchant_code": merchant_code,
         "merchant_urls": {
             "success": f"{SITE_URL}/tabby/success?order_id={order_id}",
             "cancel": f"{SITE_URL}/tabby/cancel?order_id={order_id}",

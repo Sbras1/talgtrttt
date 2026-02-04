@@ -75,7 +75,18 @@ DISPLAY_SETTINGS = {
 }
 
 # === إعدادات تابي (Tabby) للدفع بالتقسيط ===
-TABBY_PK = os.environ.get("TABBY_PK", "")  # Public Key
-TABBY_SK = os.environ.get("TABBY_SK", "")  # Secret Key
-TABBY_MERCHANT_CODE = os.environ.get("TABBY_MERCHANT_CODE", "")  # Merchant Code
+# تابي السعودية (SAR)
+TABBY_SA_PK = os.environ.get("TABBY_SA_PK", "")  # Public Key السعودية
+TABBY_SA_SK = os.environ.get("TABBY_SA_SK", "")  # Secret Key السعودية
+TABBY_SA_MERCHANT_CODE = os.environ.get("TABBY_SA_MERCHANT_CODE", "")  # Merchant Code السعودية
+
+# تابي الإمارات (AED)
+TABBY_AE_PK = os.environ.get("TABBY_AE_PK", "")  # Public Key الإمارات
+TABBY_AE_SK = os.environ.get("TABBY_AE_SK", "")  # Secret Key الإمارات
+TABBY_AE_MERCHANT_CODE = os.environ.get("TABBY_AE_MERCHANT_CODE", "")  # Merchant Code الإمارات
+
+# إعدادات مشتركة (للتوافق مع الكود القديم - يستخدم السعودية افتراضياً)
+TABBY_PK = TABBY_SA_PK or os.environ.get("TABBY_PK", "")
+TABBY_SK = TABBY_SA_SK or os.environ.get("TABBY_SK", "")
+TABBY_MERCHANT_CODE = TABBY_SA_MERCHANT_CODE or os.environ.get("TABBY_MERCHANT_CODE", "")
 TABBY_API_URL = "https://api.tabby.ai/api/v2/checkout"
