@@ -249,7 +249,7 @@ def send_welcome(message):
         result = bot.send_message(
             message.chat.id,
             f"أهلاً يا {user_name}! 👋\n\n"
-            f"💰 رصيدك: {balance:.2f} ريال\n\n"
+            f"💰 رصيدك: {balance:.2f} درهم\n\n"
             f"اختر من الأزرار بالأسفل 👇",
             reply_markup=markup,
             parse_mode="Markdown"
@@ -338,7 +338,7 @@ def handle_back_to_main(call):
         
         bot.edit_message_text(
             f"أهلاً يا {user_name}! 👋\n\n"
-            f"💰 رصيدك: {balance:.2f} ريال\n\n"
+            f"💰 رصيدك: {balance:.2f} درهم\n\n"
             f"اختر من الأزرار بالأسفل 👇",
             call.message.chat.id,
             call.message.message_id,
@@ -394,7 +394,7 @@ def handle_create_invoice_button(call):
         bot.send_message(
             call.message.chat.id,
             "🧾 *إنشاء فاتورة جديدة*\n\n"
-            "💰 أدخل مبلغ الفاتورة بالريال:\n\n"
+            "💰 أدخل مبلغ الفاتورة بالدرهم:\n\n"
             "📌 *مثال:* `100`",
             reply_markup=markup,
             parse_mode="Markdown"
@@ -439,7 +439,7 @@ def process_product_name(message):
     temp_product_data[user_id]['item_name'] = message.text.strip()
     bot.reply_to(message, f"✅ تم إضافة الاسم: {message.text.strip()}")
     
-    msg = bot.send_message(message.chat.id, "💰 أرسل سعر المنتج (بالريال):")
+    msg = bot.send_message(message.chat.id, "💰 أرسل سعر المنتج (بالدرهم):")
     bot.register_next_step_handler(msg, process_product_price)
 
 def process_product_price(message):
@@ -453,7 +453,7 @@ def process_product_price(message):
     try:
         price = float(message.text.strip())
         temp_product_data[user_id]['price'] = str(price)
-        bot.reply_to(message, f"✅ تم إضافة السعر: {price} ريال")
+        bot.reply_to(message, f"✅ تم إضافة السعر: {price} درهم")
         
         # إرسال أزرار الفئات
         markup = types.ReplyKeyboardMarkup(row_width=2, one_time_keyboard=True, resize_keyboard=True)
@@ -590,7 +590,7 @@ def process_product_delivery_type(message):
     summary = (
         "📦 **ملخص المنتج:**\n\n"
         f"📝 الاسم: {product['item_name']}\n"
-        f"💰 السعر: {product['price']} ريال\n"
+        f"💰 السعر: {product['price']} درهم\n"
         f"🏷️ الفئة: {product['category']}\n"
         f"📋 التفاصيل: {product['details']}\n"
         f"🖼️ الصورة: {product['image_url']}\n"
@@ -661,7 +661,7 @@ def confirm_add_product(message):
             bot.reply_to(message,
                          f"✅ **تم إضافة المنتج بنجاح!**\n\n"
                          f"📦 المنتج: {product['item_name']}\n"
-                         f"💰 السعر: {product['price']} ريال\n"
+                         f"💰 السعر: {product['price']} درهم\n"
                          f"🏷️ الفئة: {product['category']}\n"
                          f"📦 التسليم: {delivery_display}\n"
                          f"📊 إجمالي المنتجات: {products_count}",
@@ -726,8 +726,8 @@ def add_funds(message):
         except:
             pass
         
-        bot.reply_to(message, f"✅ تم إضافة {amount} ريال للمستخدم {target_id}")
-        bot.send_message(target_id, f"🎉 تم شحن رصيدك بمبلغ {amount} ريال!")
+        bot.reply_to(message, f"✅ تم إضافة {amount} درهم للمستخدم {target_id}")
+        bot.send_message(target_id, f"🎉 تم شحن رصيدك بمبلغ {amount} درهم!")
     except:
         bot.reply_to(message, "خطأ! الاستخدام: /add ID AMOUNT")
 
@@ -805,7 +805,7 @@ def edfapay_settings(message):
 
 # أمر توليد مفاتيح الشحن
 # الاستخدام: /توليد AMOUNT [COUNT]
-# مثال: /توليد 50 10  (توليد 10 مفاتيح بقيمة 50 ريال لكل منها)
+# مثال: /توليد 50 10  (توليد 10 مفاتيح بقيمة 50 درهم لكل منها)
 @bot.message_handler(commands=['توليد'])
 def generate_keys(message):
     if message.from_user.id != ADMIN_ID:
@@ -841,7 +841,7 @@ def generate_keys(message):
         if count == 1:
             response = (
                 f"🎁 **تم توليد المفتاح بنجاح!**\n\n"
-                f"💰 القيمة: {amount} ريال\n"
+                f"💰 القيمة: {amount} درهم\n"
                 f"🔑 المفتاح:\n"
                 f"`{generated_keys[0]}`\n\n"
                 f"📝 يمكن للمستخدم شحنه بإرسال: /شحن {generated_keys[0]}"
@@ -850,8 +850,8 @@ def generate_keys(message):
             keys_text = "\n".join([f"`{key}`" for key in generated_keys])
             response = (
                 f"🎁 **تم توليد {count} مفتاح بنجاح!**\n\n"
-                f"💰 قيمة كل مفتاح: {amount} ريال\n"
-                f"💵 المجموع الكلي: {amount * count} ريال\n\n"
+                f"💰 قيمة كل مفتاح: {amount} درهم\n"
+                f"💵 المجموع الكلي: {amount * count} درهم\n\n"
                 f"🔑 المفاتيح:\n{keys_text}\n\n"
                 f"📝 الاستخدام: /شحن [المفتاح]"
             )
@@ -864,9 +864,9 @@ def generate_keys(message):
                      "📝 الصيغة الصحيحة:\n"
                      "`/توليد [المبلغ] [العدد]`\n\n"
                      "**أمثلة:**\n"
-                     "• `/توليد 50` - مفتاح واحد بقيمة 50 ريال\n"
-                     "• `/توليد 100 5` - 5 مفاتيح بقيمة 100 ريال لكل منها\n"
-                     "• `/توليد 25 10` - 10 مفاتيح بقيمة 25 ريال لكل منها",
+                     "• `/توليد 50` - مفتاح واحد بقيمة 50 درهم\n"
+                     "• `/توليد 100 5` - 5 مفاتيح بقيمة 100 درهم لكل منها\n"
+                     "• `/توليد 25 10` - 10 مفاتيح بقيمة 25 درهم لكل منها",
                      parse_mode="Markdown")
     except ValueError:
         bot.reply_to(message, "❌ الرجاء إدخال أرقام صحيحة!")
@@ -934,10 +934,10 @@ def handle_recharge_payment(call):
         bot.send_message(
             call.message.chat.id,
             "💳 *شحن رصيد إلكتروني*\n\n"
-            "💵 أدخل المبلغ الذي تريد شحنه بالريال:\n\n"
+            "💵 أدخل المبلغ الذي تريد شحنه بالدرهم:\n\n"
             "📌 *مثال:* `50` أو `100`\n\n"
-            "⚠️ الحد الأدنى: 10 ريال\n"
-            "⚠️ الحد الأقصى: 1000 ريال",
+            "⚠️ الحد الأدنى: 10 درهم\n"
+            "⚠️ الحد الأقصى: 1000 درهم",
             reply_markup=markup,
             parse_mode="Markdown"
         )
@@ -1004,11 +1004,11 @@ def create_edfapay_invoice(user_id, amount, user_name):
     try:
         # توليد معرف فريد للطلب
         order_id = f"TR{user_id}{int(time.time())}"
-        order_description = f"Recharge {amount} SAR"
+        order_description = f"Recharge {amount} AED"
         
         # إنشاء الـ Hash
         # Formula: hash = SHA1(MD5(UPPERCASE(order_id + order_amount + order_currency + order_description + merchant_password)))
-        to_hash = f"{order_id}{amount}SAR{order_description}{EDFAPAY_PASSWORD}".upper()
+        to_hash = f"{order_id}{amount}AED{order_description}{EDFAPAY_PASSWORD}".upper()
         md5_hash = hashlib.md5(to_hash.encode()).hexdigest()
         final_hash = hashlib.sha1(md5_hash.encode()).hexdigest()
         
@@ -1021,7 +1021,7 @@ def create_edfapay_invoice(user_id, amount, user_name):
             'edfa_merchant_id': EDFAPAY_MERCHANT_ID,
             'order_id': order_id,
             'order_amount': str(amount),
-            'order_currency': 'SAR',
+            'order_currency': 'AED',
             'order_description': order_description,
             'req_token': 'N',
             'payer_first_name': user_name or 'Customer',
@@ -1031,7 +1031,7 @@ def create_edfapay_invoice(user_id, amount, user_name):
             'payer_city': 'Riyadh',
             'payer_zip': '12221',
             'payer_email': f'user{user_id}@telegram.com',
-            'payer_phone': '966500000000',
+            'payer_phone': '971500000000',
             'payer_ip': payer_ip,
             'term_url_3ds': f"{SITE_URL}/payment/success?order_id={order_id}",
             'auth': 'N',
@@ -1150,9 +1150,9 @@ def handle_user_state_message(message):
             
             # التحقق من الحدود
             if amount < 10:
-                return bot.reply_to(message, "❌ الحد الأدنى للشحن هو 10 ريال")
+                return bot.reply_to(message, "❌ الحد الأدنى للشحن هو 10 درهم")
             if amount > 1000:
-                return bot.reply_to(message, "❌ الحد الأقصى للشحن هو 1000 ريال")
+                return bot.reply_to(message, "❌ الحد الأقصى للشحن هو 1000 درهم")
             
             # إزالة حالة المستخدم
             del user_states[user_id]
@@ -1172,7 +1172,7 @@ def handle_user_state_message(message):
                 
                 bot.edit_message_text(
                     f"✅ *تم إنشاء طلب الشحن!*\n\n"
-                    f"💰 المبلغ: {amount} ريال\n"
+                    f"💰 المبلغ: {amount} درهم\n"
                     f"📋 رقم الطلب: `{result['invoice_id']}`\n"
                     f"⏱️ صالح لمدة: *10 دقائق*\n\n"
                     f"👇 اضغط الزر أدناه للدفع:\n\n"
@@ -1189,7 +1189,7 @@ def handle_user_state_message(message):
                         f"🔔 *طلب شحن جديد*\n\n"
                         f"👤 المستخدم: {user_name}\n"
                         f"🆔 الآيدي: {user_id}\n"
-                        f"💰 المبلغ: {amount} ريال\n"
+                        f"💰 المبلغ: {amount} درهم\n"
                         f"📋 رقم الطلب: `{result['invoice_id']}`",
                         parse_mode="Markdown"
                     )
@@ -1239,7 +1239,7 @@ def handle_user_state_message(message):
                     'key_code': key_code,
                     'timestamp': firestore.SERVER_TIMESTAMP
                 })
-                print(f"✅ تم تسجيل شحنة التليجرام في charge_history: {amount} ريال للمستخدم {user_id}")
+                print(f"✅ تم تسجيل شحنة التليجرام في charge_history: {amount} درهم للمستخدم {user_id}")
                 
                 # إشعار المالك بالشحن
                 notify_new_charge(user_id, amount, method='telegram_key', username=user_name)
@@ -1252,8 +1252,8 @@ def handle_user_state_message(message):
             # إرسال رسالة نجاح
             bot.reply_to(message,
                 f"✅ *تم شحن رصيدك بنجاح!*\n\n"
-                f"💰 المبلغ المضاف: {amount} ريال\n"
-                f"💵 رصيدك الحالي: {get_balance(user_id)} ريال\n\n"
+                f"💰 المبلغ المضاف: {amount} درهم\n"
+                f"💵 رصيدك الحالي: {get_balance(user_id)} درهم\n\n"
                 f"⏳ *ملاحظة:* المبلغ سيكون متاحاً للسحب العادي (5.5%) بعد 72 ساعة.\n"
                 f"⚡ يمكنك السحب الفوري الآن برسوم 8%.\n"
                 f"🚀 التحويل خلال 1-5 ساعات بعد الموافقة!\n\n"
@@ -1270,7 +1270,7 @@ def handle_user_state_message(message):
                     f"🔔 *تم استخدام مفتاح شحن*\n\n"
                     f"👤 المستخدم: {user_name}\n"
                     f"🆔 الآيدي: {user_id}\n"
-                    f"💰 المبلغ: {amount} ريال\n"
+                    f"💰 المبلغ: {amount} درهم\n"
                     f"🔑 المفتاح: `{key_code}`",
                     parse_mode="Markdown"
                 )
@@ -1493,7 +1493,7 @@ def list_keys(message):
     
     if active_keys:
         total_value = sum([v.get('amount', 0) for v in active_keys.values()])
-        response += f"💰 القيمة الإجمالية للمفاتيح النشطة: {total_value} ريال"
+        response += f"💰 القيمة الإجمالية للمفاتيح النشطة: {total_value} درهم"
     
     bot.reply_to(message, response, parse_mode="Markdown")
 
@@ -1551,7 +1551,7 @@ def create_invoice_command(message):
     bot.send_message(
         message.chat.id,
         "🧾 *إنشاء فاتورة جديدة*\n\n"
-        "💰 أدخل مبلغ الفاتورة بالريال:\n\n"
+        "💰 أدخل مبلغ الفاتورة بالدرهم:\n\n"
         "_مثال: 100_",
         parse_mode="Markdown",
         reply_markup=markup
@@ -1701,10 +1701,10 @@ def create_customer_invoice(merchant_id, merchant_name, amount, customer_phone, 
         # استخدام معرف الفاتورة الأصلي أو توليد جديد
         invoice_id = original_invoice_id or f"INV{generate_invoice_id()}"
         order_id = f"{invoice_id}{int(time.time())}"
-        order_description = f"Invoice {invoice_id} - {amount} SAR"
+        order_description = f"Invoice {invoice_id} - {amount} AED"
         
         # إنشاء الـ Hash
-        to_hash = f"{order_id}{amount}SAR{order_description}{EDFAPAY_PASSWORD}".upper()
+        to_hash = f"{order_id}{amount}AED{order_description}{EDFAPAY_PASSWORD}".upper()
         md5_hash = hashlib.md5(to_hash.encode()).hexdigest()
         final_hash = hashlib.sha1(md5_hash.encode()).hexdigest()
         
@@ -1714,9 +1714,9 @@ def create_customer_invoice(merchant_id, merchant_name, amount, customer_phone, 
         phone = phone.replace('+', '')
         # إزالة المسافات
         phone = phone.replace(' ', '')
-        # إذا بدأ بصفر، أضف 966 (للتوافق مع الأرقام القديمة)
+        # إذا بدأ بصفر، أضف 971 (للتوافق مع الأرقام القديمة)
         if phone.startswith('0'):
-            phone = '966' + phone[1:]
+            phone = '971' + phone[1:]
         
         # حساب وقت انتهاء صفحة الدفع (10 دقائق)
         from datetime import datetime as dt, timedelta as td
@@ -1729,7 +1729,7 @@ def create_customer_invoice(merchant_id, merchant_name, amount, customer_phone, 
             'edfa_merchant_id': EDFAPAY_MERCHANT_ID,
             'order_id': order_id,
             'order_amount': str(amount),
-            'order_currency': 'SAR',
+            'order_currency': 'AED',
             'order_description': order_description,
             'req_token': 'N',
             'payer_first_name': 'Customer',
@@ -1879,7 +1879,7 @@ def claim_order(call):
         bot.edit_message_text(
             f"✅ تم استلام الطلب #{order_id}\n\n"
             f"📦 المنتج: {order['item_name']}\n"
-            f"💰 السعر: {order['price']} ريال\n\n"
+            f"💰 السعر: {order['price']} درهم\n\n"
             f"👨‍💼 أنت المسؤول عن هذا الطلب\n"
             f"⏰ الحالة: قيد التنفيذ...\n\n"
             f"🔒 سيتم إرسال البيانات السرية لك الآن...",
@@ -1947,7 +1947,7 @@ def complete_order(call):
         order['seller_id'],
         f"💰 تم بيع منتجك!\n\n"
         f"📦 المنتج: {order['item_name']}\n"
-        f"💵 المبلغ: {order['price']} ريال\n\n"
+        f"💵 المبلغ: {order['price']} درهم\n\n"
         f"✅ تم إضافة المبلغ لرصيدك!"
     )
     
@@ -2040,8 +2040,8 @@ def confirm_transaction(call):
     # حذف العملية من الانتظار
     del transactions[trans_id]
     
-    bot.edit_message_text(f"✅ تم تأكيد استلام الخدمة: {trans['item_name']}\nتم تحويل {amount} ريال للبائع.", call.message.chat.id, call.message.message_id)
-    bot.send_message(seller_id, f"🤑 مبروك! قام العميل بتأكيد الاستلام.\n💰 تم إضافة {amount} ريال لرصيدك.\n📦 الطلب: {trans['item_name']}\n🎮 آيدي: {trans.get('game_id', 'غير محدد')}")
+    bot.edit_message_text(f"✅ تم تأكيد استلام الخدمة: {trans['item_name']}\nتم تحويل {amount} درهم للبائع.", call.message.chat.id, call.message.message_id)
+    bot.send_message(seller_id, f"🤑 مبروك! قام العميل بتأكيد الاستلام.\n💰 تم إضافة {amount} درهم لرصيدك.\n📦 الطلب: {trans['item_name']}\n🎮 آيدي: {trans.get('game_id', 'غير محدد')}")
 
 # معالج تنفيذ الطلبات اليدوية
 @bot.callback_query_handler(func=lambda call: call.data.startswith('claim_order_'))
@@ -2120,7 +2120,7 @@ def claim_manual_order(call):
                 f"📦 المنتج: {order.get('item_name')}\n"
                 f"👤 المشتري: {order.get('buyer_name')}\n"
                 f"🔢 معرف المشتري: {order.get('buyer_id')}\n"
-                f"💰 السعر: {order.get('price')} ريال"
+                f"💰 السعر: {order.get('price')} درهم"
                 f"{buyer_details_text}\n\n"
                 f"👇 بعد تنفيذ الطلب اضغط الزر أدناه",
                 chat_id=call.message.chat.id,
@@ -2140,7 +2140,7 @@ def claim_manual_order(call):
                     f"📦 المنتج: {order.get('item_name')}\n"
                     f"👤 المشتري: {order.get('buyer_name')}\n"
                     f"👨‍💼 المشرف المنفذ: {admin_name}\n"
-                    f"💰 السعر: {order.get('price')} ريال"
+                    f"💰 السعر: {order.get('price')} درهم"
                 )
             except:
                 pass
@@ -2208,7 +2208,7 @@ def complete_manual_order(call):
                 f"🆔 رقم الطلب: #{order_id}\n"
                 f"📦 المنتج: {order.get('item_name')}\n"
                 f"👤 المشتري: {order.get('buyer_name')}\n"
-                f"💰 السعر: {order.get('price')} ريال\n\n"
+                f"💰 السعر: {order.get('price')} درهم\n\n"
                 f"👨‍💼 تم التنفيذ بواسطة: {admin_name}\n"
                 f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}",
                 chat_id=call.message.chat.id,
@@ -2309,8 +2309,8 @@ def handle_withdraw_approve(call):
             user_message = f"""
 ✅ تم تحويل المبلغ بنجاح!
 
-💰 المبلغ المطلوب: {amount:.2f} ريال
-💵 المبلغ المحول: {net_amount:.2f} ريال
+💰 المبلغ المطلوب: {amount:.2f} درهم
+💵 المبلغ المحول: {net_amount:.2f} درهم
 
 شكراً لتعاملك معنا! 🙏
 """
@@ -2384,7 +2384,7 @@ def handle_withdraw_reject(call):
             user_message = f"""
 ❌ تم رفض طلب السحب
 
-💰 المبلغ: {amount:.2f} ريال
+💰 المبلغ: {amount:.2f} درهم
 
 تم إرجاع المبلغ لرصيدك.
 للاستفسار راسلنا 📞
@@ -2506,7 +2506,7 @@ def back_to_start_menu(call):
         
         bot.edit_message_text(
             f"أهلاً يا {user_name}! 👋\n\n"
-            f"💰 رصيدك: {balance:.2f} ريال\n\n"
+            f"💰 رصيدك: {balance:.2f} درهم\n\n"
             f"اختر من الأزرار بالأسفل 👇",
             call.message.chat.id, call.message.message_id,
             reply_markup=markup, parse_mode="Markdown"

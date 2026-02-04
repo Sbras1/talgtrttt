@@ -75,7 +75,7 @@ def create_tabby_payment():
     if not is_amount_eligible(amount):
         return jsonify({
             'success': False,
-            'error': f'تابي متاح للمبالغ بين {TABBY_MIN_AMOUNT} و {TABBY_MAX_AMOUNT} ريال'
+            'error': f'تابي متاح للمبالغ بين {TABBY_MIN_AMOUNT} و {TABBY_MAX_AMOUNT} درهم'
         }), 400
     
     # إنشاء الجلسة
@@ -188,9 +188,9 @@ def tabby_webhook():
                         bot.send_message(
                             int(user_id),
                             f"✅ *تم شحن رصيدك بنجاح!*\n\n"
-                            f"💰 المبلغ: {original_amount} ريال\n"
+                            f"💰 المبلغ: {original_amount} درهم\n"
                             f"💳 طريقة الدفع: تابي (تقسيط)\n"
-                            f"💵 رصيدك الجديد: {new_balance} ريال",
+                            f"💵 رصيدك الجديد: {new_balance} درهم",
                             parse_mode='Markdown'
                         )
                     except:
@@ -203,14 +203,14 @@ def tabby_webhook():
                             ADMIN_ID,
                             f"💳 *دفعة تابي ناجحة!*\n\n"
                             f"👤 User ID: `{user_id}`\n"
-                            f"💰 المبلغ: {original_amount} ريال\n"
+                            f"💰 المبلغ: {original_amount} درهم\n"
                             f"📋 Order: `{order_ref}`",
                             parse_mode='Markdown'
                         )
                     except:
                         pass
                 
-                print(f"✅ تم إضافة {original_amount} ريال للمستخدم {user_id}")
+                print(f"✅ تم إضافة {original_amount} درهم للمستخدم {user_id}")
                 
             except Exception as e:
                 print(f"❌ خطأ في إضافة الرصيد: {e}")

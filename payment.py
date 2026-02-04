@@ -11,8 +11,8 @@ import time
 import requests
 from datetime import datetime, timedelta, timezone
 
-# توقيت السعودية UTC+3
-SAUDI_TZ = timezone(timedelta(hours=3))
+# توقيت الإمارات UTC+4
+UAE_TZ = timezone(timedelta(hours=4))
 
 from config import EDFAPAY_MERCHANT_ID, EDFAPAY_PASSWORD, EDFAPAY_API_URL, SITE_URL
 
@@ -20,17 +20,17 @@ from config import EDFAPAY_MERCHANT_ID, EDFAPAY_PASSWORD, EDFAPAY_API_URL, SITE_
 
 def calculate_hash(order_id, amount, description):
     """حساب الـ Hash لـ EdfaPay"""
-    to_hash = f"{order_id}{amount}SAR{description}{EDFAPAY_PASSWORD}".upper()
+    to_hash = f"{order_id}{amount}AED{description}{EDFAPAY_PASSWORD}".upper()
     md5_hash = hashlib.md5(to_hash.encode()).hexdigest()
     final_hash = hashlib.sha1(md5_hash.encode()).hexdigest()
     return final_hash
 
-def create_payment_payload(order_id, amount, description, user_id, user_name='Customer', phone='966500000000'):
+def create_payment_payload(order_id, amount, description, user_id, user_name='Customer', phone='971500000000'):
     """إنشاء بيانات طلب الدفع"""
     final_hash = calculate_hash(order_id, amount, description)
     
-    # حساب وقت انتهاء صفحة الدفع (10 دقائق) بتوقيت السعودية
-    expiry_time = datetime.now(SAUDI_TZ) + timedelta(minutes=10)
+    # حساب وقت انتهاء صفحة الدفع (10 دقائق) بتوقيت الإمارات
+    expiry_time = datetime.now(UAE_TZ) + timedelta(minutes=10)
     expiry_str = expiry_time.strftime('%Y-%m-%d %H:%M:%S')
     
     return {
@@ -38,15 +38,15 @@ def create_payment_payload(order_id, amount, description, user_id, user_name='Cu
         'edfa_merchant_id': EDFAPAY_MERCHANT_ID,
         'order_id': order_id,
         'order_amount': str(amount),
-        'order_currency': 'SAR',
+        'order_currency': 'AED',
         'order_description': description,
         'req_token': 'N',
         'payer_first_name': user_name or 'Customer',
         'payer_last_name': 'User',
-        'payer_address': 'Riyadh',
-        'payer_country': 'SA',
-        'payer_city': 'Riyadh',
-        'payer_zip': '12221',
+        'payer_address': 'Dubai',
+        'payer_country': 'AE',
+        'payer_city': 'Dubai',
+        'payer_zip': '00000',
         'payer_email': f'user{user_id}@telegram.com',
         'payer_phone': phone,
         'payer_ip': '176.44.76.222',
@@ -64,7 +64,7 @@ def create_edfapay_invoice(user_id, amount, user_name='Customer'):
     try:
         # توليد معرف فريد للطلب
         order_id = f"TR{user_id}{int(time.time())}"
-        order_description = f"Recharge {amount} SAR"
+        order_description = f"Recharge {amount} AED"
         
         # إنشاء الـ payload
         payload = create_payment_payload(
@@ -114,7 +114,7 @@ def create_wallet_payment(user_id, amount):
     try:
         amount_int = int(amount)
         order_id = f"TR{user_id}{int(time.time())}"
-        order_description = f"Recharge {amount_int} SAR"
+        order_description = f"Recharge {amount_int} AED"
         
         # إنشاء الـ payload
         payload = create_payment_payload(

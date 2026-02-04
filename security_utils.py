@@ -105,7 +105,7 @@ def checkout_with_transaction(db, user_id, total_amount, callback):
             
             # تحقق من الرصيد
             if balance < total_amount:
-                raise ValueError(f'رصيد غير كافي. تحتاج {total_amount - balance:.2f} ريال')
+                raise ValueError(f'رصيد غير كافي. تحتاج {total_amount - balance:.2f} درهم')
             
             # حدّث الرصيد
             new_balance = balance - total_amount

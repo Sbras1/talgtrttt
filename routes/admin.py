@@ -1675,7 +1675,7 @@ def api_add_balance():
     
     try:
         if bot:
-            bot.send_message(int(user_id), f"🎉 تم شحن رصيدك بمبلغ {amount} ريال!")
+            bot.send_message(int(user_id), f"🎉 تم شحن رصيدك بمبلغ {amount} درهم!")
     except:
         pass
     
@@ -1721,7 +1721,7 @@ def api_add_product():
             if bot:
                 bot.send_message(
                     ADMIN_ID,
-                    f"✅ **تم إضافة منتج جديد**\n📦 {name}\n💰 {price} ريال",
+                    f"✅ **تم إضافة منتج جديد**\n📦 {name}\n💰 {price} درهم",
                     parse_mode="Markdown"
                 )
         except Exception as e:

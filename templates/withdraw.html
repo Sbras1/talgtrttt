@@ -1218,7 +1218,7 @@
             const maxAmount = currentType === 'normal' ? availableForNormal : balance;
             
             if (amount < 10) {
-                showToast('الحد الأدنى للسحب 10 ريال', 'error');
+                showToast('الحد الأدنى للسحب 10 درهم', 'error');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال طلب السحب';
                 return;

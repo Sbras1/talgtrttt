@@ -48,7 +48,7 @@ def check_balance_warning():
     response['warnings'].append({
         'type': 'warning',
         'title': '⚠️ رصيد غير كافي',
-        'message': f'تحتاج إلى {shortage:.2f} ريال إضافي',
+        'message': f'تحتاج إلى {shortage:.2f} درهم إضافي',
         'severity': 'high'
     })
     
@@ -66,19 +66,19 @@ def generate_smart_suggestions(user_id, shortage, current_balance):
         'id': 'exact_amount',
         'type': 'recommended',
         'title': '💡 الخيار الأمثل',
-        'description': f'اشحن {shortage:.2f} ريال فقط لإتمام الشراء',
+        'description': f'اشحن {shortage:.2f} درهم فقط لإتمام الشراء',
         'amount': shortage,
         'icon': '✨',
         'priority': 1
     })
     
     # 2️⃣ الاقتراح الثاني: اشحن أكثر قليلاً لتوفير رصيد إضافي
-    extra_amount = shortage + 50  # إضافة 50 ريال
+    extra_amount = shortage + 50  # إضافة 50 درهم
     suggestions.append({
         'id': 'extra_amount',
         'type': 'offer',
         'title': '🎁 عرض خاص',
-        'description': f'اشحن {extra_amount:.2f} ريال واحصل على رصيد إضافي {50:.2f} ريال لمشتريات المستقبل',
+        'description': f'اشحن {extra_amount:.2f} درهم واحصل على رصيد إضافي {50:.2f} درهم لمشتريات المستقبل',
         'amount': extra_amount,
         'bonus': 50,
         'icon': '🎉',
@@ -103,7 +103,7 @@ def generate_smart_suggestions(user_id, shortage, current_balance):
             'id': 'low_balance_warning',
             'type': 'critical',
             'title': '🚨 تنبيه مهم',
-            'message': f'رصيدك قليل جداً ({current_balance:.2f} ريال)',
+            'message': f'رصيدك قليل جداً ({current_balance:.2f} درهم)',
             'description': f'اشحن الآن للحصول على عروض حصرية',
             'icon': '⚠️',
             'priority': 0
@@ -145,7 +145,7 @@ def recommended_charge_amounts():
             'amount': amount,
             'bonus': bonus,
             'total': amount + bonus,
-            'badge': f'احصل على {bonus:.0f} ريال هدية!' if bonus > 0 else 'عادي'
+            'badge': f'احصل على {bonus:.0f} درهم هدية!' if bonus > 0 else 'عادي'
         })
     
     return jsonify({
@@ -162,7 +162,7 @@ def quick_charge():
     user_id = str(data.get('user_id'))
     amount = float(data.get('amount'))
     
-    print(f"⚡ شحن سريع: {amount} ريال")
+    print(f"⚡ شحن سريع: {amount} درهم")
     
     # حفظ طلب الشحن
     charge_id = db.collection('charge_requests').add({
@@ -174,7 +174,7 @@ def quick_charge():
     
     return jsonify({
         'status': 'success',
-        'message': f'✅ تم إرسال طلب شحن {amount} ريال',
+        'message': f'✅ تم إرسال طلب شحن {amount} درهم',
         'charge_id': charge_id,
         'redirect_url': f'/payment/charge?id={charge_id}'
     })
@@ -186,28 +186,28 @@ def get_quick_charge_links():
         'quick_links': [
             {
                 'amount': 50,
-                'label': '50 ريال',
+                'label': '50 درهم',
                 'emoji': '💚',
                 'recommended': False
             },
             {
                 'amount': 100,
-                'label': '100 ريال',
+                'label': '100 درهم',
                 'emoji': '💜',
                 'recommended': True
             },
             {
                 'amount': 200,
-                'label': '200 ريال',
+                'label': '200 درهم',
                 'emoji': '💛',
                 'recommended': False
             },
             {
                 'amount': 500,
-                'label': '500 ريال',
+                'label': '500 درهم',
                 'emoji': '🎁',
                 'recommended': False,
-                'badge': '+50 ريال هدية'
+                'badge': '+50 درهم هدية'
             }
         ]
     })

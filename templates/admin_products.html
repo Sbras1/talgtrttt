@@ -399,7 +399,7 @@
                         <input type="text" id="productName" placeholder="مثال: نتفلكس شهر كامل" required>
                     </div>
                     <div class="form-group">
-                        <label> السعر (ريال) *</label>
+                        <label> السعر (درهم) *</label>
                         <input type="number" id="productPrice" placeholder="25" min="1" required>
                     </div>
                     <div class="form-group">
@@ -512,7 +512,7 @@
                             <div class="product-name">${product.item_name}</div>
                             <div class="product-details">${product.details || 'بدون تفاصيل'}</div>
                             <div class="product-footer">
-                                <span class="product-price">${product.price} ريال</span>
+                                <span class="product-price">${product.price} درهم</span>
                                 <button class="delete-btn" onclick="openDeleteModal('${product.id}', '${product.item_name.replace(/'/g, "\\'")}')"> حذف</button>
                             </div>
                         </div>
@@ -539,7 +539,7 @@
                                 ${product.buyer_name ? ` المشتري: ${product.buyer_name}` : ''}
                             </div>
                             <div class="product-footer">
-                                <span class="product-price" style="text-decoration: line-through; color: #888;">${product.price} ريال</span>
+                                <span class="product-price" style="text-decoration: line-through; color: #888;">${product.price} درهم</span>
                             </div>
                         </div>
                     </div>

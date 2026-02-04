@@ -151,7 +151,7 @@ def add_balance(user_id, amount, users_wallets=None, description='شحن رصي�
                 'updated_at': firestore.SERVER_TIMESTAMP,
                 'last_charge_at': firestore.SERVER_TIMESTAMP  # تحديث وقت آخر شحن للسحب
             }, merge=True)
-            print(f"✅ تم حفظ رصيد المستخدم {uid}: {new_balance} ريال في Firestore")
+            print(f"✅ تم حفظ رصيد المستخدم {uid}: {new_balance} درهم في Firestore")
             
             # تسجيل العملية في balance_logs
             add_balance_log(
@@ -191,7 +191,7 @@ def deduct_balance(user_id, amount, users_wallets=None, description='خصم رص
                 'telegram_id': uid,
                 'updated_at': firestore.SERVER_TIMESTAMP
             }, merge=True)
-            print(f"✅ تم خصم {amount} ريال من المستخدم {uid}. الرصيد الجديد: {new_balance}")
+            print(f"✅ تم خصم {amount} درهم من المستخدم {uid}. الرصيد الجديد: {new_balance}")
             
             # تسجيل العملية في balance_logs
             add_balance_log(
