@@ -284,7 +284,7 @@ def notify_invoice_created(merchant_id, merchant_name, amount, invoice_id, custo
         f"🧾 <b>تم إنشاء فاتورة جديدة!</b>\n\n"
         f"👤 <b>التاجر:</b> {merchant_name}\n"
         f"🆔 <b>آيدي:</b> <code>{merchant_id}</code>\n"
-        f"💰 <b>المبلغ:</b> {amount} درهم\n"
+        f"💰 <b>المبلغ:</b> {amount} ريال\n"
         f"📋 <b>الفاتورة:</b> <code>{invoice_id}</code>\n"
         f"📱 <b>رقم العميل:</b> {customer_phone or 'لم يُحدد بعد'}"
     )
@@ -299,7 +299,7 @@ def notify_payment_pending(user_id, amount, order_id, payment_type='شحن رص�
             f"📍 <b>النوع:</b> {payment_type}\n"
             f"👤 <b>التاجر:</b> {username or user_id}\n"
             f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-            f"💰 <b>المبلغ:</b> {amount} درهم\n"
+            f"💰 <b>المبلغ:</b> {amount} ريال\n"
             f"📋 <b>الفاتورة:</b> <code>{invoice_id or order_id}</code>\n"
             f"📱 <b>رقم العميل:</b> {customer_phone or 'غير محدد'}\n"
             f"🔗 <b>الطلب:</b> <code>{order_id}</code>"
@@ -310,7 +310,7 @@ def notify_payment_pending(user_id, amount, order_id, payment_type='شحن رص�
             f"📍 <b>النوع:</b> {payment_type}\n"
             f"👤 <b>المستخدم:</b> {username or user_id}\n"
             f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-            f"💰 <b>المبلغ:</b> {amount} درهم\n"
+            f"💰 <b>المبلغ:</b> {amount} ريال\n"
             f"🔗 <b>الطلب:</b> <code>{order_id}</code>"
         )
     return notify_owner(message)
@@ -323,7 +323,7 @@ def notify_payment_success(user_id, amount, order_id, trans_id=None, payment_typ
             f"🧾 <b>دفع فاتورة تاجر!</b>\n\n"
             f"👤 <b>التاجر:</b> {username or user_id}\n"
             f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-            f"💰 <b>المبلغ:</b> {amount} درهم\n"
+            f"💰 <b>المبلغ:</b> {amount} ريال\n"
             f"📋 <b>الفاتورة:</b> <code>{invoice_id or order_id}</code>\n"
             f"📱 <b>رقم العميل:</b> {customer_phone or 'غير محدد'}\n"
             f"🔗 <b>EdfaPay:</b> <code>{trans_id or 'N/A'}</code>"
@@ -333,13 +333,13 @@ def notify_payment_success(user_id, amount, order_id, trans_id=None, payment_typ
             f"💳 <b>دفعة جديدة ناجحة!</b>\n\n"
             f"👤 <b>المستخدم:</b> {username or user_id}\n"
             f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-            f"💰 <b>المبلغ:</b> {amount} درهم\n"
+            f"💰 <b>المبلغ:</b> {amount} ريال\n"
             f"🔗 <b>الطلب:</b> <code>{order_id}</code>\n"
             f"🔗 <b>EdfaPay:</b> <code>{trans_id or 'N/A'}</code>"
         )
     
     if new_balance is not None:
-        message += f"\n💵 <b>الرصيد الجديد:</b> {new_balance} درهم"
+        message += f"\n💵 <b>الرصيد الجديد:</b> {new_balance} ريال"
     
     return notify_owner(message)
 
@@ -353,7 +353,7 @@ def notify_payment_failed(user_id, amount, order_id, reason=None, payment_type='
             f"❌ <b>فشل دفع فاتورة تاجر!</b>\n\n"
             f"👤 <b>التاجر:</b> {username or user_id}\n"
             f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-            f"💰 <b>المبلغ:</b> {amount} درهم\n"
+            f"💰 <b>المبلغ:</b> {amount} ريال\n"
             f"📋 <b>الفاتورة:</b> <code>{invoice_id or order_id}</code>\n"
             f"📱 <b>رقم العميل:</b> {customer_phone or 'غير محدد'}\n"
             f"❗ <b>السبب:</b> {clean_reason}"
@@ -363,7 +363,7 @@ def notify_payment_failed(user_id, amount, order_id, reason=None, payment_type='
             f"❌ <b>فشلت عملية الدفع!</b>\n\n"
             f"👤 <b>المستخدم:</b> {username or user_id}\n"
             f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-            f"💰 <b>المبلغ:</b> {amount} درهم\n"
+            f"💰 <b>المبلغ:</b> {amount} ريال\n"
             f"🔗 <b>الطلب:</b> <code>{order_id}</code>\n"
             f"❗ <b>السبب:</b> {clean_reason}"
         )
@@ -376,7 +376,7 @@ def notify_recharge_request(user_id, amount, order_id, username=None):
         f"🔔 <b>طلب شحن جديد!</b>\n\n"
         f"👤 <b>المستخدم:</b> {username or user_id}\n"
         f"🆔 <b>آيدي:</b> <code>{user_id}</code>\n"
-        f"💰 <b>المبلغ:</b> {amount} درهم\n"
+        f"💰 <b>المبلغ:</b> {amount} ريال\n"
         f"📋 <b>رقم الطلب:</b> <code>{order_id}</code>\n\n"
         f"⏳ في انتظار الدفع..."
     )
@@ -436,17 +436,17 @@ def send_activity_notification(activity_type, user_id, username=None, details=No
         # إضافة التفاصيل حسب النوع
         if details:
             if activity_type == 'charge' and 'amount' in details:
-                message += f"💵 <b>المبلغ:</b> {details['amount']} درهم\n"
+                message += f"💵 <b>المبلغ:</b> {details['amount']} ريال\n"
             elif activity_type == 'withdraw':
                 if 'amount' in details:
-                    message += f"💵 <b>المبلغ:</b> {details['amount']} درهم\n"
+                    message += f"💵 <b>المبلغ:</b> {details['amount']} ريال\n"
                 if 'type' in details:
                     message += f"📋 <b>النوع:</b> {details['type']}\n"
             elif activity_type == 'purchase':
                 if 'product' in details:
                     message += f"📦 <b>المنتج:</b> {details['product']}\n"
                 if 'price' in details:
-                    message += f"💵 <b>السعر:</b> {details['price']} درهم\n"
+                    message += f"💵 <b>السعر:</b> {details['price']} ريال\n"
         
         message += f"━━━━━━━━━━━━━━━\n"
         message += f"🕐 <b>الوقت:</b> {now}"

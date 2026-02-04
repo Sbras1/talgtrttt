@@ -23,7 +23,7 @@ ACTIVITY_CHANNEL_ID = os.environ.get("ACTIVITY_CHANNEL_ID", "")  # معرف قن
 
 # === إعدادات التواصل ===
 CONTACT_BOT_URL = os.environ.get("CONTACT_BOT_URL", "https://t.me/GamersTR_bot")
-CONTACT_WHATSAPP = os.environ.get("CONTACT_WHATSAPP", "https://wa.me/971504104956")
+CONTACT_WHATSAPP = os.environ.get("CONTACT_WHATSAPP", "https://wa.me/966504104956")
 
 # === إعدادات بوابة الدفع EdfaPay ===
 EDFAPAY_MERCHANT_ID = os.environ.get("EDFAPAY_MERCHANT_ID", "")

@@ -81,7 +81,7 @@ def process_wallet_payment(user_id, amount):
     if balance < amount:
         return jsonify({
             'status': 'error',
-            'message': f'رصيدك غير كافي! تحتاج {amount - balance} درهم إضافي',
+            'message': f'رصيدك غير كافي! تحتاج {amount - balance} ريال إضافي',
             'shortage': amount - balance
         })
     
@@ -89,7 +89,7 @@ def process_wallet_payment(user_id, amount):
     from firebase_utils import deduct_balance
     deduct_balance(user_id, amount)
     
-    print(f"✅ تم الدفع من المحفظة: {amount} درهم")
+    print(f"✅ تم الدفع من المحفظة: {amount} ريال")
     
     return jsonify({
         'status': 'success',
@@ -140,7 +140,7 @@ def process_installment_payment(user_id, amount):
         'created_at': db.server_timestamp()
     })[1].id
     
-    print(f"📅 خطة تقسيط: {monthly_payment} درهم × 3 شهور")
+    print(f"📅 خطة تقسيط: {monthly_payment} ريال × 3 شهور")
     
     return jsonify({
         'status': 'success',

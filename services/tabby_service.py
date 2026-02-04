@@ -12,8 +12,8 @@ import hashlib
 from config import TABBY_PK, TABBY_SK, TABBY_MERCHANT_CODE, TABBY_API_URL, SITE_URL
 
 # الحد الأدنى والأقصى لتابي
-TABBY_MIN_AMOUNT = 100  # درهم
-TABBY_MAX_AMOUNT = 5000  # درهم
+TABBY_MIN_AMOUNT = 100  # ريال
+TABBY_MAX_AMOUNT = 5000  # ريال
 
 
 def is_tabby_configured():
@@ -32,7 +32,7 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
     
     Args:
         order_id: معرف الطلب
-        amount: المبلغ (يجب أن يكون بين 100-5000 درهم)
+        amount: المبلغ (يجب أن يكون بين 100-5000 ريال)
         customer_phone: رقم الجوال
         customer_name: اسم العميل
         customer_email: البريد الإلكتروني (اختياري)
@@ -51,7 +51,7 @@ def create_tabby_session(order_id, amount, customer_phone, customer_name="عمي
     if not is_amount_eligible(amount):
         return {
             'success': False,
-            'error': f'المبلغ يجب أن يكون بين {TABBY_MIN_AMOUNT} و {TABBY_MAX_AMOUNT} درهم'
+            'error': f'المبلغ يجب أن يكون بين {TABBY_MIN_AMOUNT} و {TABBY_MAX_AMOUNT} ريال'
         }
     
     # تنسيق رقم الجوال

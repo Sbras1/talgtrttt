@@ -671,12 +671,12 @@ def send_code_by_phone():
         phone = phone.replace(' ', '').replace('-', '').replace('+', '')
         
         # تحويل الصيغ المختلفة إلى 05xxxxxxxx
-        if phone.startswith('971'):
+        if phone.startswith('966'):
             phone = '0' + phone[3:]
         elif phone.startswith('5') and len(phone) == 9:
             phone = '0' + phone
         
-        # التحقق من صيغة الرقم الإماراتي
+        # التحقق من صيغة الرقم السعودي
         if not re.match(r'^05\d{8}$', phone):
             return jsonify({'success': False, 'message': 'رقم جوال غير صحيح. يجب أن يبدأ بـ 05 ويتكون من 10 أرقام'}), 400
         
@@ -1108,7 +1108,7 @@ def charge_balance_api():
                 'timestamp': firestore.SERVER_TIMESTAMP,
                 'type': 'charge'
             })
-            print(f"✅ تم تسجيل شحنة الكود في charge_history: {amount} درهم للمستخدم {user_id}")
+            print(f"✅ تم تسجيل شحنة الكود في charge_history: {amount} ريال للمستخدم {user_id}")
             
             # إشعار المالك بالشحن
             notify_new_charge(user_id, amount, method='key')
@@ -1117,7 +1117,7 @@ def charge_balance_api():
     
     return jsonify({
         'success': True, 
-        'message': f'تم شحن {amount} درهم بنجاح!',
+        'message': f'تم شحن {amount} ريال بنجاح!',
         'new_balance': new_balance
     })
 
@@ -1296,7 +1296,7 @@ def buy_item():
                     int(buyer_id),
                     f"✅ تم الشراء بنجاح!\n\n"
                     f"📦 المنتج: {item.get('item_name')}\n"
-                    f"💰 السعر: {price} درهم\n"
+                    f"💰 السعر: {price} ريال\n"
                     f"🆔 رقم الطلب: #{order_id}\n\n"
                     f"🔐 بيانات الاشتراك:\n{hidden_info}\n\n"
                     f"⚠️ احفظ هذه البيانات في مكان آمن!"
@@ -1310,7 +1310,7 @@ def buy_item():
                     f"🔔 عملية بيع جديدة!\n"
                     f"📦 المنتج: {item.get('item_name')}\n"
                     f"👤 المشتري: {buyer_name} ({buyer_id})\n"
-                    f"💰 السعر: {price} درهم\n"
+                    f"💰 السعر: {price} ريال\n"
                     f"✅ تم إرسال البيانات للمشتري"
                 )
             except Exception as e:
@@ -1334,7 +1334,7 @@ def buy_item():
                     int(buyer_id),
                     f"⏳ تم استلام طلبك!\n\n"
                     f"📦 المنتج: {item.get('item_name')}\n"
-                    f"💰 السعر: {price} درهم\n"
+                    f"💰 السعر: {price} ريال\n"
                     f"🆔 رقم الطلب: #{order_id}\n\n"
                     f"👨‍💼 طلبك بانتظار التنفيذ من قبل الإدارة\n"
                     f"📲 سيتم إرسال البيانات لك فور تنفيذ الطلب"
@@ -1362,7 +1362,7 @@ def buy_item():
                 f"🆔 رقم الطلب: #{order_id}\n"
                 f"📦 المنتج: {item.get('item_name')}\n"
                 f"👤 المشتري: {buyer_name}\n"
-                f"💰 السعر: {price} درهم"
+                f"💰 السعر: {price} ريال"
                 f"{hidden_buyer_details}\n\n"
                 f"👇 اضغط لاستلام وعرض التفاصيل"
             )
@@ -1543,8 +1543,8 @@ _قد تكون محاولة اختراق!_
 🔴 المبلغ المرسل لا يطابق المبلغ الأصلي!
 
 📋 Order ID: `{order_id}`
-💰 المبلغ الأصلي: {original_amount} درهم
-💰 المبلغ المزيف: {received_amount} درهم
+💰 المبلغ الأصلي: {original_amount} ريال
+💰 المبلغ المزيف: {received_amount} ريال
 🌐 IP: `{client_ip}`
 
 _محاولة اختراق واضحة!_
@@ -1591,7 +1591,7 @@ _محاولة اختراق واضحة!_
 ⚠️ *رابط منتهي - تم الرفض*
 
 📋 Order: `{order_id}`
-💰 المبلغ: {amount} درهم
+💰 المبلغ: {amount} ريال
 ⏰ انتهى منذ: {expired_minutes} دقيقة
                                 """
                                 bot.send_message(ADMIN_ID, alert_msg, parse_mode='Markdown')
@@ -1604,14 +1604,14 @@ _محاولة اختراق واضحة!_
             if received_hash and original_payment:
                 # حساب الـ Hash المتوقع بنفس طريقة EdfaPay
                 # EdfaPay ترسل hash = SHA1(MD5(order_id + order_amount + currency + status + trans_id + password))
-                order_desc = original_payment.get('description', f"Recharge {int(original_amount)} AED")
+                order_desc = original_payment.get('description', f"Recharge {int(original_amount)} SAR")
                 
                 # محاولة التحقق بعدة صيغ (لأن EdfaPay قد تستخدم صيغ مختلفة)
                 hash_verified = False
                 
-                # صيغة 1: order_id + amount + AED + description + password
+                # صيغة 1: order_id + amount + SAR + description + password
                 try:
-                    to_hash_1 = f"{order_id}{int(original_amount)}AED{order_desc}{EDFAPAY_PASSWORD}".upper()
+                    to_hash_1 = f"{order_id}{int(original_amount)}SAR{order_desc}{EDFAPAY_PASSWORD}".upper()
                     expected_hash_1 = hashlib.sha1(hashlib.md5(to_hash_1.encode()).hexdigest().encode()).hexdigest()
                     if received_hash.lower() == expected_hash_1.lower():
                         hash_verified = True
@@ -1621,7 +1621,7 @@ _محاولة اختراق واضحة!_
                 # صيغة 2: reverse order (بعض البوابات تستخدم ترتيب مختلف)
                 if not hash_verified:
                     try:
-                        to_hash_2 = f"{EDFAPAY_PASSWORD}{order_id}{int(original_amount)}AED".upper()
+                        to_hash_2 = f"{EDFAPAY_PASSWORD}{order_id}{int(original_amount)}SAR".upper()
                         expected_hash_2 = hashlib.sha1(hashlib.md5(to_hash_2.encode()).hexdigest().encode()).hexdigest()
                         if received_hash.lower() == expected_hash_2.lower():
                             hash_verified = True
@@ -1631,7 +1631,7 @@ _محاولة اختراق واضحة!_
                 # صيغة 3: مع trans_id و status
                 if not hash_verified:
                     try:
-                        to_hash_3 = f"{order_id}{int(original_amount)}AED{trans_id}{status}{EDFAPAY_PASSWORD}".upper()
+                        to_hash_3 = f"{order_id}{int(original_amount)}SAR{trans_id}{status}{EDFAPAY_PASSWORD}".upper()
                         expected_hash_3 = hashlib.sha1(hashlib.md5(to_hash_3.encode()).hexdigest().encode()).hexdigest()
                         if received_hash.lower() == expected_hash_3.lower():
                             hash_verified = True
@@ -1711,7 +1711,7 @@ _محاولة اختراق واضحة!_
                 
                 # ✅ إضافة الرصيد
                 add_balance(user_id, pay_amount)
-                print(f"✅ تم إضافة {pay_amount} درهم للمستخدم {user_id}")
+                print(f"✅ تم إضافة {pay_amount} ريال للمستخدم {user_id}")
                 
                 # ✅ إشعار المالك بالشحن
                 notify_new_charge(user_id, pay_amount, method='edfapay')
@@ -1786,8 +1786,8 @@ _محاولة اختراق واضحة!_
                             int(user_id),
                             f"💰 *تم استلام دفعة جديدة!*\n\n"
                             f"🧾 رقم الفاتورة: `{invoice_id}`\n"
-                            f"💵 المبلغ: {pay_amount} درهم\n\n"
-                            f"💳 رصيدك الحالي: {new_balance} درهم\n\n"
+                            f"💵 المبلغ: {pay_amount} ريال\n\n"
+                            f"💳 رصيدك الحالي: {new_balance} ريال\n\n"
                             f"✅ تم إضافة المبلغ لرصيدك",
                             parse_mode="Markdown"
                         )
@@ -1817,8 +1817,8 @@ _محاولة اختراق واضحة!_
                         bot.send_message(
                             int(user_id),
                             f"✅ *تم شحن رصيدك بنجاح!*\n\n"
-                            f"💰 المبلغ المضاف: {pay_amount} درهم\n"
-                            f"💵 رصيدك الحالي: {new_balance} درهم\n\n"
+                            f"💰 المبلغ المضاف: {pay_amount} ريال\n"
+                            f"💵 رصيدك الحالي: {new_balance} ريال\n\n"
                             f"📋 رقم العملية: `{order_id}`\n\n"
                             f"🎉 استمتع بالتسوق!",
                             parse_mode="Markdown"
@@ -1891,9 +1891,9 @@ _محاولة اختراق واضحة!_
                     
                     # رسالة مختلفة حسب نوع الدفع
                     if is_merchant_invoice:
-                        msg_text = f"❌ فشلت عملية الدفع\n\n💰 المبلغ: {pay_amount} درهم\n❗ السبب: {decline_reason}\n\n💡 أخبر العميل بالمحاولة مرة أخرى"
+                        msg_text = f"❌ فشلت عملية الدفع\n\n💰 المبلغ: {pay_amount} ريال\n❗ السبب: {decline_reason}\n\n💡 أخبر العميل بالمحاولة مرة أخرى"
                     else:
-                        msg_text = f"❌ فشلت عملية الشحن\n\n💰 المبلغ: {pay_amount} درهم\n❗ السبب: {decline_reason}\n\n💡 تأكد من رصيد البطاقة أو جرب بطاقة أخرى"
+                        msg_text = f"❌ فشلت عملية الشحن\n\n💰 المبلغ: {pay_amount} ريال\n❗ السبب: {decline_reason}\n\n💡 تأكد من رصيد البطاقة أو جرب بطاقة أخرى"
                     
                     bot.send_message(int(user_id), msg_text)
                 except Exception as e:
@@ -2084,8 +2084,8 @@ def adfaly_webhook():
                     bot.send_message(
                         int(user_id),
                         f"✅ *تم شحن رصيدك بنجاح!*\n\n"
-                        f"💰 المبلغ المضاف: {pay_amount} درهم\n"
-                        f"💵 رصيدك الحالي: {new_balance} درهم\n\n"
+                        f"💰 المبلغ المضاف: {pay_amount} ريال\n"
+                        f"💵 رصيدك الحالي: {new_balance} ريال\n\n"
                         f"📋 رقم العملية: `{invoice_id}`\n\n"
                         f"🎉 استمتع بالتسوق!",
                         parse_mode="Markdown"
@@ -2099,7 +2099,7 @@ def adfaly_webhook():
                         ADMIN_ID,
                         f"💳 *تم استلام دفعة جديدة!*\n\n"
                         f"👤 المستخدم: {user_id}\n"
-                        f"💰 المبلغ: {pay_amount} درهم\n"
+                        f"💰 المبلغ: {pay_amount} ريال\n"
                         f"📋 رقم العملية: `{invoice_id}`\n"
                         f"✅ تم إضافة الرصيد تلقائياً",
                         parse_mode="Markdown"
@@ -2107,7 +2107,7 @@ def adfaly_webhook():
                 except:
                     pass
                 
-                print(f"✅ تم شحن {pay_amount} درهم للمستخدم {user_id}")
+                print(f"✅ تم شحن {pay_amount} ريال للمستخدم {user_id}")
                 return jsonify({'status': 'success', 'message': 'Payment processed'})
             
             else:
@@ -2381,7 +2381,7 @@ def api_add_product():
         try:
             bot.send_message(
                 ADMIN_ID,
-                f"✅ **تم إضافة منتج جديد**\n📦 {name}\n💰 {price} درهم",
+                f"✅ **تم إضافة منتج جديد**\n📦 {name}\n💰 {price} ريال",
                 parse_mode="Markdown"
             )
         except Exception as e:

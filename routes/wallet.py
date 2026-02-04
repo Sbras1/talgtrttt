@@ -157,17 +157,17 @@ def wallet_pay():
             return jsonify({'success': False, 'message': 'رقم جوال غير صحيح'})
         
         if amount < 10 or amount > 5000:
-            return jsonify({'success': False, 'message': 'المبلغ يجب أن يكون بين 10 و 5000 درهم'})
+            return jsonify({'success': False, 'message': 'المبلغ يجب أن يكون بين 10 و 5000 ريال'})
         
         if not EDFAPAY_MERCHANT_ID or not EDFAPAY_PASSWORD:
             return jsonify({'success': False, 'message': 'بوابة الدفع غير مفعلة'})
         
         amount_int = int(amount)
         order_id = f"TR{user_id}{int(time.time())}"
-        order_description = f"Recharge {amount_int} AED"
+        order_description = f"Recharge {amount_int} SAR"
         
         # حساب الـ hash
-        to_hash = f"{order_id}{amount_int}AED{order_description}{EDFAPAY_PASSWORD}".upper()
+        to_hash = f"{order_id}{amount_int}SAR{order_description}{EDFAPAY_PASSWORD}".upper()
         md5_hash = hashlib.md5(to_hash.encode()).hexdigest()
         final_hash = hashlib.sha1(md5_hash.encode()).hexdigest()
         
@@ -176,9 +176,9 @@ def wallet_pay():
         # تنسيق رقم الجوال
         formatted_phone = phone.replace('+', '').replace(' ', '')
         if formatted_phone.startswith('0'):
-            formatted_phone = '971' + formatted_phone[1:]
-        elif not formatted_phone.startswith('971'):
-            formatted_phone = '971' + formatted_phone
+            formatted_phone = '966' + formatted_phone[1:]
+        elif not formatted_phone.startswith('966'):
+            formatted_phone = '966' + formatted_phone
         
         # حساب وقت انتهاء صفحة الدفع (10 دقائق)
         from datetime import datetime as dt, timedelta as td
@@ -190,7 +190,7 @@ def wallet_pay():
             'edfa_merchant_id': EDFAPAY_MERCHANT_ID,
             'order_id': order_id,
             'order_amount': str(amount_int),
-            'order_currency': 'AED',
+            'order_currency': 'SAR',
             'order_description': order_description,
             'req_token': 'N',
             'payer_first_name': 'Customer',
@@ -410,6 +410,6 @@ def charge_balance_api():
     
     return jsonify({
         'success': True, 
-        'message': f'تم شحن {amount} درهم بنجاح!',
+        'message': f'تم شحن {amount} ريال بنجاح!',
         'new_balance': new_balance
     })

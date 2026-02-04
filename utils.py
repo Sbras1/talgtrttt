@@ -159,7 +159,7 @@ def validate_phone(phone):
     return len(phone) >= 9 and phone.isdigit()
 
 # === دالة تنظيف رقم الجوال ===
-def clean_phone(phone, country_code='971'):
+def clean_phone(phone, country_code='966'):
     """تنظيف وتنسيق رقم الجوال"""
     if not phone:
         return ''

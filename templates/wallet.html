@@ -225,7 +225,7 @@
         <div class="balance-card">
             <div class="balance-label"> رصيدك الحالي</div>
             <div class="balance-amount" id="currentBalance">{{ balance }}</div>
-            <div class="balance-currency">درهم إماراتي</div>
+            <div class="balance-currency">ريال سعودي</div>
         </div>
         <div class="stats-row">
             <div class="stat-card">
@@ -251,7 +251,7 @@
                     <label class="form-label"> رقم الجوال</label>
                     <div style="display: flex; gap: 10px; direction: ltr;">
                         <select id="countryCode" class="form-input" style="width: 110px; padding: 12px 8px;">
-                            <option value="971">🇦🇪 +971</option>
+                            <option value="966">🇸🇦 +966</option>
                             <option value="971">🇦🇪 +971</option>
                             <option value="965">🇰🇼 +965</option>
                             <option value="973">🇧🇭 +973</option>
@@ -277,9 +277,9 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <input type="number" id="chargeAmount" placeholder="100" min="10" max="5000" required
                                class="form-input" style="flex: 1; text-align: center; font-size: 18px;">
-                        <span style="color: #b2bec3; font-size: 16px;">درهم</span>
+                        <span style="color: #b2bec3; font-size: 16px;">ريال</span>
                     </div>
-                    <p class="form-hint">الحد الأدنى: 10 درهم | الحد الأقصى: 5000 درهم</p>
+                    <p class="form-hint">الحد الأدنى: 10 ريال | الحد الأقصى: 5000 ريال</p>
                 </div>
                 <div class="amount-buttons">
                     <button type="button" class="amount-btn" onclick="setAmount(25)">25</button>
@@ -343,7 +343,7 @@
             return;
         }
         if(!amount || amount < 10 || amount > 5000) {
-            showToast(' المبلغ يجب أن يكون بين 10 و 5000 درهم', 'error');
+            showToast(' المبلغ يجب أن يكون بين 10 و 5000 ريال', 'error');
             return;
         }
         let cleanPhone = phone;

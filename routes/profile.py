@@ -233,7 +233,7 @@ def profile():
                 minutes_passed = time_diff.total_seconds() / 60
                 
                 # طباعة للمراقبة (يظهر في Terminal)
-                print(f"💰 Charge: {charge_amt} AED, Mins Passed: {minutes_passed:.2f}")
+                print(f"💰 Charge: {charge_amt} SAR, Mins Passed: {minutes_passed:.2f}")
                 
                 # شرط التجميد
                 if minutes_passed < FREEZE_MINUTES:
@@ -658,11 +658,11 @@ def send_phone_code():
         # إزالة المسافات والرموز
         phone = phone.replace(' ', '').replace('-', '').replace('+', '')
         
-        # التحقق من صحة رقم الجوال الإماراتي
+        # التحقق من صحة رقم الجوال السعودي
         import re
-        # يقبل: 05xxxxxxxx أو 5xxxxxxxx أو 9715xxxxxxxx
-        if phone.startswith('971'):
-            phone = '0' + phone[3:]  # تحويل 9715xxx إلى 05xxx
+        # يقبل: 05xxxxxxxx أو 5xxxxxxxx أو 9665xxxxxxxx
+        if phone.startswith('966'):
+            phone = '0' + phone[3:]  # تحويل 9665xxx إلى 05xxx
         elif phone.startswith('5') and len(phone) == 9:
             phone = '0' + phone  # تحويل 5xxx إلى 05xxx
         
@@ -1076,7 +1076,7 @@ def submit_withdraw():
                 
                 return jsonify({
                     'success': False, 
-                    'message': f'رصيدك المتاح للسحب العادي هو {current_available_balance:.2f} درهم فقط. المبلغ المتبقي ({total_frozen_balance:.2f}) سيكون متاحاً بعد {time_left_str}.',
+                    'message': f'رصيدك المتاح للسحب العادي هو {current_available_balance:.2f} ريال فقط. المبلغ المتبقي ({total_frozen_balance:.2f}) سيكون متاحاً بعد {time_left_str}.',
                     'available_for_normal': current_available_balance
                 }), 400
         else:
@@ -1151,9 +1151,9 @@ def submit_withdraw():
 💸 تم استلام طلب السحب!
 
 📌 نوع السحب: {type_text}
-💰 المبلغ: {amount:.2f} درهم
-💵 الرسوم: {fee_amount:.2f} درهم
-✅ المبلغ الصافي: {net_amount:.2f} درهم
+💰 المبلغ: {amount:.2f} ريال
+💵 الرسوم: {fee_amount:.2f} ريال
+✅ المبلغ الصافي: {net_amount:.2f} ريال
 
 📍 طريقة التحويل: {method_display}
 👤 الاسم: {full_name}
@@ -1186,9 +1186,9 @@ def submit_withdraw():
 🆔 الآيدي: {user_id}
 📌 النوع: {type_text}
 
-💰 المبلغ: {amount:.2f} درهم
-💵 الرسوم: {fee_amount:.2f} درهم
-✅ الصافي: {net_amount:.2f} درهم
+💰 المبلغ: {amount:.2f} ريال
+💵 الرسوم: {fee_amount:.2f} ريال
+✅ الصافي: {net_amount:.2f} ريال
 
 📍 التحويل إلى:
 👤 {full_name}
