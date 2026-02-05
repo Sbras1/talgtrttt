@@ -804,9 +804,12 @@ def send_code_by_email():
         except:
             pass
         
-        # إعادة تعيين المحاولات الفاشلة
-        from security_utils import reset_failed_attempts
-        reset_failed_attempts(user_id)
+        # إعادة تعيين المحاولات الفاشلة (اختياري)
+        try:
+            from security_utils import reset_failed_attempts
+            reset_failed_attempts(user_id)
+        except:
+            pass  # تجاهل إذا لم يكن موجوداً
         
         # إرسال الكود عبر البريد الإلكتروني
         try:
