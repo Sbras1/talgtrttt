@@ -465,12 +465,35 @@
                         </div>
                     </div>
                     <div class="switch-method">
-                        <a onclick="switchToPhone()">📱 التسجيل برقم الجوال</a>
+                        <a onclick="switchToEmail()">📧 التسجيل بالإيميل</a>
+                        <span style="color: #333; margin: 0 5px;">|</span>
+                        <a onclick="switchToPhone()">📱 التسجيل بالجوال</a>
                     </div>
                     <button type="submit" id="sendCodeBtn">إرسال كود التحقق</button>
                 </form>
                 <div class="help-text">
                     💡 لا تعرف رقمك؟ أرسل /id للبوت
+                </div>
+            </div>
+            
+            <!-- قسم البريد الإلكتروني -->
+            <div id="emailSection" class="login-input-section">
+                <form id="emailForm">
+                    <div class="form-group">
+                        <label>📧 البريد الإلكتروني</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="loginEmail" placeholder="example@gmail.com" dir="ltr" autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="switch-method">
+                        <a onclick="switchToTelegram()">🆔 التسجيل بـ Telegram</a>
+                        <span style="color: #333; margin: 0 5px;">|</span>
+                        <a onclick="switchToPhone()">📱 التسجيل بالجوال</a>
+                    </div>
+                    <button type="submit" id="sendCodeEmailBtn">إرسال كود التحقق</button>
+                </form>
+                <div class="help-text">
+                    ✉️ سيصلك الكود على بريدك الإلكتروني المسجل
                 </div>
             </div>
             
@@ -484,7 +507,9 @@
                         </div>
                     </div>
                     <div class="switch-method">
-                        <a onclick="switchToTelegram()">🆔 التسجيل بـ Telegram ID</a>
+                        <a onclick="switchToTelegram()">🆔 التسجيل بـ Telegram</a>
+                        <span style="color: #333; margin: 0 5px;">|</span>
+                        <a onclick="switchToEmail()">📧 التسجيل بالإيميل</a>
                     </div>
                     <button type="submit" id="sendCodePhoneBtn">إرسال كود التحقق</button>
                 </form>
@@ -496,7 +521,7 @@
             <div id="error1" class="message error"></div>
             
             <div class="security-note">
-                🔒 سيتم إرسال <span>كود مؤقت</span> عبر البوت للتحقق من هويتك
+                🔒 سيتم إرسال <span>كود مؤقت</span> للتحقق من هويتك
             </div>
         </div>
         
@@ -505,10 +530,10 @@
             <div class="logo-area">
                 <div class="logo-icon">✉️</div>
                 <h1>كود التحقق</h1>
-                <p class="subtitle">أدخل الكود المرسل لك في Telegram</p>
+                <p class="subtitle" id="step2Subtitle">أدخل الكود المرسل لك</p>
             </div>
             
-            <div class="timer">⏱️ <span id="countdown">2:00</span></div>
+            <div class="timer">⏱️ <span id="countdown">5:00</span></div>
             
             <form id="codeForm">
                 <div class="form-group">
@@ -559,13 +584,24 @@
 
     <script>
         let countdownInterval;
-        let secondsLeft = 120;
+        let secondsLeft = 300;  // 5 دقائق للإيميل
         let currentUserId = '';
         let loginMethod = 'telegram';
+        
+        function switchToEmail() {
+            loginMethod = 'email';
+            document.getElementById('telegramSection').classList.remove('active');
+            document.getElementById('phoneSection').classList.remove('active');
+            document.getElementById('emailSection').classList.add('active');
+            document.getElementById('loginSubtitle').textContent = 'أدخل بريدك الإلكتروني المسجل';
+            document.getElementById('error1').style.display = 'none';
+            document.getElementById('loginEmail').focus();
+        }
         
         function switchToPhone() {
             loginMethod = 'phone';
             document.getElementById('telegramSection').classList.remove('active');
+            document.getElementById('emailSection').classList.remove('active');
             document.getElementById('phoneSection').classList.add('active');
             document.getElementById('loginSubtitle').textContent = 'أدخل رقم الجوال الموثق';
             document.getElementById('error1').style.display = 'none';
@@ -575,6 +611,7 @@
         function switchToTelegram() {
             loginMethod = 'telegram';
             document.getElementById('phoneSection').classList.remove('active');
+            document.getElementById('emailSection').classList.remove('active');
             document.getElementById('telegramSection').classList.add('active');
             document.getElementById('loginSubtitle').textContent = 'أدخل رقم Telegram ID الخاص بك';
             document.getElementById('error1').style.display = 'none';
@@ -609,6 +646,64 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    secondsLeft = 120;  // دقيقتين للتلغرام
+                    document.getElementById('step2Subtitle').textContent = 'أدخل الكود المرسل لك في Telegram';
+                    document.getElementById('step1').classList.remove('active');
+                    document.getElementById('step2').classList.add('active');
+                    startCountdown();
+                    document.getElementById('verifyCode').focus();
+                } else {
+                    errorDiv.textContent = '❌ ' + data.message;
+                    errorDiv.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = 'إرسال كود التحقق';
+                }
+            } catch (error) {
+                errorDiv.textContent = '❌ خطأ في الاتصال بالسيرفر';
+                errorDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = 'إرسال كود التحقق';
+            }
+        });
+        
+        // تسجيل الدخول بالبريد الإلكتروني
+        document.getElementById('emailForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+            const btn = document.getElementById('sendCodeEmailBtn');
+            const errorDiv = document.getElementById('error1');
+            
+            // التحقق من صيغة الإيميل
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailRegex.test(email)) {
+                errorDiv.textContent = '❌ الرجاء إدخال بريد إلكتروني صحيح';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '⏳ جاري الإرسال...';
+            errorDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/send_code_by_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUserId = data.user_id;
+                    secondsLeft = 300;  // 5 دقائق للإيميل
+                    
+                    if (data.method === 'email') {
+                        document.getElementById('step2Subtitle').textContent = 'أدخل الكود المرسل إلى بريدك الإلكتروني';
+                    } else {
+                        document.getElementById('step2Subtitle').textContent = 'أدخل الكود المرسل لك في Telegram';
+                    }
+                    
                     document.getElementById('step1').classList.remove('active');
                     document.getElementById('step2').classList.add('active');
                     startCountdown();
@@ -656,6 +751,8 @@
                 
                 if (data.success) {
                     currentUserId = data.user_id;
+                    secondsLeft = 120;  // دقيقتين للجوال
+                    document.getElementById('step2Subtitle').textContent = 'أدخل الكود المرسل لك في Telegram';
                     document.getElementById('step1').classList.remove('active');
                     document.getElementById('step2').classList.add('active');
                     startCountdown();
@@ -786,7 +883,7 @@
         });
         
         function startCountdown() {
-            secondsLeft = 120;
+            // لا نعيد تعيين secondsLeft هنا - تم تعيينه مسبقاً حسب طريقة التسجيل
             updateCountdown();
             countdownInterval = setInterval(() => {
                 secondsLeft--;
@@ -812,6 +909,7 @@
             document.getElementById('step1').classList.add('active');
             document.getElementById('userId').value = '';
             document.getElementById('loginPhone').value = '';
+            document.getElementById('loginEmail').value = '';
             document.getElementById('verifyCode').value = '';
             document.getElementById('error1').style.display = 'none';
             document.getElementById('error2').style.display = 'none';
@@ -820,6 +918,8 @@
             document.getElementById('sendCodeBtn').innerHTML = 'إرسال كود التحقق';
             document.getElementById('sendCodePhoneBtn').disabled = false;
             document.getElementById('sendCodePhoneBtn').innerHTML = 'إرسال كود التحقق';
+            document.getElementById('sendCodeEmailBtn').disabled = false;
+            document.getElementById('sendCodeEmailBtn').innerHTML = 'إرسال كود التحقق';
             document.getElementById('verifyBtn').disabled = false;
             document.getElementById('verifyBtn').innerHTML = 'تأكيد الدخول';
         }
@@ -829,6 +929,7 @@
             document.getElementById('step1').classList.add('active');
             document.getElementById('userId').value = '';
             document.getElementById('loginPhone').value = '';
+            document.getElementById('loginEmail').value = '';
             document.getElementById('verifyCode').value = '';
             document.getElementById('twoFACode').value = '';
             document.getElementById('error1').style.display = 'none';
