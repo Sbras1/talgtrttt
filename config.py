@@ -47,8 +47,8 @@ IS_PRODUCTION = os.environ.get("RENDER", False) or os.environ.get("PRODUCTION", 
 SESSION_CONFIG = {
     'SESSION_COOKIE_SECURE': IS_PRODUCTION,
     'SESSION_COOKIE_HTTPONLY': True,
-    'SESSION_COOKIE_SAMESITE': 'Strict',
-    'PERMANENT_SESSION_LIFETIME': timedelta(minutes=30),
+    'SESSION_COOKIE_SAMESITE': 'Lax',  # Lax للسماح بالـ AJAX requests
+    'PERMANENT_SESSION_LIFETIME': timedelta(days=7),  # أسبوع بدلاً من 30 دقيقة
     'SESSION_COOKIE_NAME': 'tr_session',
 }
 

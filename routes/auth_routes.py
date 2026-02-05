@@ -438,12 +438,16 @@ def login_email():
         # التحقق من الكود
         saved_code = str(user_data.get('verification_code', ''))
         if saved_code == code:
+            # تجديد الجلسة للأمان
+            regenerate_session()
+            
             # دخول ناجح
             session['user_id'] = user_doc.id
             session['user_name'] = user_data.get('username', user_data.get('first_name', 'مستخدم'))
             session['user_email'] = email
             session['logged_in'] = True
             session.permanent = True
+            session.modified = True  # تأكيد حفظ الجلسة
             
             # مسح الكود بعد الاستخدام
             db.collection('users').document(user_doc.id).update({
@@ -451,7 +455,7 @@ def login_email():
                 'code_time': None
             })
             
-            print(f"✅ تم تسجيل دخول المستخدم: {user_doc.id}")
+            print(f"✅ تم تسجيل دخول المستخدم: {user_doc.id} - Session: {dict(session)}")
             return jsonify({'success': True, 'message': 'تم تسجيل الدخول بنجاح'})
         else:
             return jsonify({'success': False, 'message': 'الكود غير صحيح'})
