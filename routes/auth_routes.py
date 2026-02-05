@@ -446,6 +446,7 @@ def login_email():
             session['user_name'] = user_data.get('username', user_data.get('first_name', 'مستخدم'))
             session['user_email'] = email
             session['logged_in'] = True
+            session['login_time'] = time.time()  # ⚠️ مهم جداً لمنع انتهاء الجلسة فوراً
             session.permanent = True
             session.modified = True  # تأكيد حفظ الجلسة
             
