@@ -38,11 +38,14 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            z-index: 2;
+            position: relative;
         }
         .header-center {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
+            pointer-events: none;
         }
         .header-logo {
             font-size: 22px;
@@ -59,6 +62,8 @@
         .header-left {
             display: flex;
             align-items: center;
+            z-index: 2;
+            position: relative;
         }
         .header-btn {
             background: rgba(108, 92, 231, 0.2);
