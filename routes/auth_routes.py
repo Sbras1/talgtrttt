@@ -317,21 +317,32 @@ def send_email_otp(to_email, code):
 
         print(f"📧 محاولة إرسال إيميل إلى: {to_email}")
         
-        # Gmail يستخدم port 587 مع TLS
-        if SMTP_PORT == 587:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        # استخدام SSL (port 465) مع timeout قصير
+        import socket
+        
+        # محاولة SSL أولاً (أكثر استقراراً)
+        try:
+            with smtplib.SMTP_SSL(SMTP_SERVER, 465, timeout=10) as server:
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+                print(f"✅ تم إرسال الإيميل بنجاح إلى: {to_email}")
+                return True
+        except Exception as ssl_error:
+            print(f"⚠️ فشل SSL: {ssl_error}, جاري تجربة TLS...")
+            
+        # محاولة TLS كخيار ثاني
+        try:
+            with smtplib.SMTP(SMTP_SERVER, 587, timeout=10) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
                 server.login(SMTP_EMAIL, SMTP_PASSWORD)
                 server.send_message(msg)
-        else:
-            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.send_message(msg)
-                
-        print(f"✅ تم إرسال الإيميل بنجاح إلى: {to_email}")
-        return True
+                print(f"✅ تم إرسال الإيميل بنجاح (TLS) إلى: {to_email}")
+                return True
+        except Exception as tls_error:
+            print(f"❌ فشل TLS أيضاً: {tls_error}")
+            return False
         
     except smtplib.SMTPAuthenticationError as e:
         print(f"❌ خطأ في المصادقة: {e}")
