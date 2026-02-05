@@ -1134,11 +1134,19 @@
         let secondsLeft = 120;
         let currentUserId = '';
         function openLoginModal() {
-            document.getElementById('loginModal').classList.add('show');
+            console.log('Opening login modal...');
+            const modal = document.getElementById('loginModal');
+            if (!modal) {
+                console.error('loginModal not found!');
+                alert('خطأ: النافذة غير موجودة');
+                return;
+            }
+            modal.classList.add('show');
             document.getElementById('step1').classList.add('active');
             document.getElementById('step2').classList.remove('active');
             document.getElementById('userId').focus();
             resetForm();
+            console.log('Login modal opened successfully');
         }
         function closeLoginModal() {
             document.getElementById('loginModal').classList.remove('show');
