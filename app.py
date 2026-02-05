@@ -811,7 +811,29 @@ def send_code_by_email():
         except Exception as e:
             print(f"⚠️ تعذر حفظ الكود في Firebase: {e}")
         
-        # إرسال الكود عبر Telegram مباشرة (الأسهل والأضمن)
+        # محاولة الإرسال عبر الإيميل أولاً
+        email_sent = False
+        try:
+            from services.email_service import send_otp_email, is_email_configured
+            
+            if is_email_configured():
+                email_sent = send_otp_email(email, code, user_name)
+                if email_sent:
+                    print(f"✅ تم إرسال الكود للإيميل: {email}")
+                    return jsonify({
+                        'success': True, 
+                        'message': f'✅ تم إرسال كود التحقق إلى {email}',
+                        'user_id': user_id,
+                        'method': 'email'
+                    })
+                else:
+                    print(f"⚠️ فشل إرسال الإيميل، سنحاول Telegram")
+            else:
+                print("⚠️ SMTP غير مُعد، سنرسل عبر Telegram")
+        except Exception as email_err:
+            print(f"❌ خطأ في إرسال الإيميل: {email_err}")
+        
+        # إذا فشل الإيميل، نرسل عبر Telegram كبديل
         try:
             message_text = f"""
 📧 كود التحقق للدخول:
@@ -821,11 +843,13 @@ def send_code_by_email():
 ✉️ الإيميل: {email}
 ⏰ صالح لمدة 5 دقائق
 ⚠️ لا تشارك هذا الكود!
+
+💡 (تم الإرسال عبر Telegram لأن خدمة الإيميل غير متاحة)
 """
             bot.send_message(int(user_id), message_text, parse_mode='HTML')
             return jsonify({
                 'success': True, 
-                'message': '✅ تم إرسال الكود عبر Telegram',
+                'message': '✅ تم إرسال الكود عبر Telegram (خدمة الإيميل غير متاحة)',
                 'user_id': user_id,
                 'method': 'telegram'
             })
