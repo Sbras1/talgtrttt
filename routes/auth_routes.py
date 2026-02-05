@@ -6,6 +6,10 @@ from extensions import db, bot
 from utils import regenerate_session, generate_code, validate_phone
 import time
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from config import SMTP_SERVER, SMTP_PORT, SMTP_EMAIL, SMTP_PASSWORD
 
 logger = logging.getLogger(__name__)
 
@@ -267,10 +271,6 @@ def get_user_profile():
 
 
 # ==================== نظام تسجيل الدخول بالإيميل ====================
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from config import SMTP_SERVER, SMTP_PORT, SMTP_EMAIL, SMTP_PASSWORD
 
 def send_email_otp(to_email, code):
     """إرسال كود التحقق عبر الإيميل"""
