@@ -19,8 +19,6 @@
                     </div>
                     <div class="switch-method">
                         <a onclick="switchToEmail()">📧 التسجيل بالإيميل</a>
-                        <span style="color: #00ff88; margin: 0 8px;">|</span>
-                        <a onclick="switchToPhone()">📱 التسجيل بالجوال</a>
                     </div>
                     <button type="submit" id="sendCodeBtn">إرسال كود التحقق</button>
                 </form>
@@ -35,28 +33,21 @@
                     </div>
                     <div class="switch-method">
                         <a onclick="switchToTelegram()">🆔 التسجيل بـ Telegram</a>
-                        <span style="color: #00ff88; margin: 0 8px;">|</span>
-                        <a onclick="switchToPhone()">📱 التسجيل بالجوال</a>
                     </div>
                     <button type="submit" id="sendCodeEmailBtn">إرسال كود التحقق</button>
                 </form>
                 <div class="help-text">✉️ سيصلك الكود على بريدك الإلكتروني</div>
             </div>
             
-            <div id="phoneSection" class="login-section">
+            <!-- قسم الجوال مخفي مؤقتاً للتجربة -->
+            <div id="phoneSection" class="login-section" style="display: none !important;">
                 <form id="phoneForm">
                     <div class="form-group">
                         <label>📱 رقم الجوال</label>
                         <input type="tel" id="loginPhone" placeholder="05xxxxxxxx" dir="ltr" maxlength="10" autocomplete="off">
                     </div>
-                    <div class="switch-method">
-                        <a onclick="switchToTelegram()">🆔 التسجيل بـ Telegram</a>
-                        <span style="color: #00ff88; margin: 0 8px;">|</span>
-                        <a onclick="switchToEmail()">📧 التسجيل بالإيميل</a>
-                    </div>
                     <button type="submit" id="sendCodePhoneBtn">إرسال كود التحقق</button>
                 </form>
-                <div class="help-text">⚠️ يجب أن يكون الرقم موثق في حسابك</div>
             </div>
             
             <div id="error1" class="message error"></div>
