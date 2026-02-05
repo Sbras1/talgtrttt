@@ -48,7 +48,7 @@ SESSION_CONFIG = {
     'SESSION_COOKIE_SECURE': IS_PRODUCTION,
     'SESSION_COOKIE_HTTPONLY': True,
     'SESSION_COOKIE_SAMESITE': 'Lax',  # Lax للسماح بالـ AJAX requests
-    'PERMANENT_SESSION_LIFETIME': timedelta(days=7),  # أسبوع بدلاً من 30 دقيقة
+    'PERMANENT_SESSION_LIFETIME': timedelta(minutes=30),  # 30 دقيقة
     'SESSION_COOKIE_NAME': 'tr_session',
 }
 
