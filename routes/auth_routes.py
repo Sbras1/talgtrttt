@@ -264,3 +264,190 @@ def get_user_profile():
             'profile_photo': user_data.get('profile_photo', '')
         }
     })
+
+
+# ==================== نظام تسجيل الدخول بالإيميل ====================
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from config import SMTP_SERVER, SMTP_PORT, SMTP_EMAIL, SMTP_PASSWORD
+
+def send_email_otp(to_email, code):
+    """إرسال كود التحقق عبر الإيميل"""
+    try:
+        if not SMTP_EMAIL or not SMTP_PASSWORD:
+            print("❌ إعدادات SMTP غير مكتملة")
+            return False
+            
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"TR Store <{SMTP_EMAIL}>"
+        msg['To'] = to_email
+        msg['Subject'] = "🔐 كود الدخول - TR Store"
+
+        # تصميم الرسالة HTML
+        html_body = f"""
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head><meta charset="UTF-8"></head>
+        <body style="margin: 0; padding: 0; background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, sans-serif;">
+            <div style="max-width: 500px; margin: 30px auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 28px;">🔐 TR Store</h1>
+                    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">رمز التحقق الخاص بك</p>
+                </div>
+                <div style="padding: 40px 30px; text-align: center;">
+                    <p style="color: #666; font-size: 16px; margin-bottom: 30px;">مرحباً! 👋<br>استخدم الرمز التالي لتسجيل الدخول:</p>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; display: inline-block;">
+                        <span style="font-size: 36px; font-weight: bold; color: white; letter-spacing: 8px;">{code}</span>
+                    </div>
+                    <p style="color: #999; font-size: 14px; margin-top: 30px;">⏰ هذا الرمز صالح لمدة <strong>10 دقائق</strong> فقط</p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p style="color: #aaa; font-size: 12px;">⚠️ إذا لم تطلب هذا الرمز، تجاهل هذا الإيميل</p>
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; text-align: center;">
+                    <p style="color: #888; font-size: 12px; margin: 0;">TR Store © 2024</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(f"رمز التحقق: {code}", 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        print(f"📧 محاولة إرسال إيميل إلى: {to_email}")
+        
+        # Gmail يستخدم port 587 مع TLS
+        if SMTP_PORT == 587:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+                
+        print(f"✅ تم إرسال الإيميل بنجاح إلى: {to_email}")
+        return True
+        
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"❌ خطأ في المصادقة: {e}")
+        print("💡 تأكد من استخدام App Password وليس كلمة المرور العادية")
+        return False
+    except Exception as e:
+        print(f"❌ خطأ في إرسال الإيميل: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+@auth_bp.route('/api/auth/send-code', methods=['POST'])
+def send_code_email():
+    """إرسال كود التحقق للإيميل"""
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+        
+    email = data.get('email', '').strip().lower()
+    
+    if not email or '@' not in email:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال بريد إلكتروني صحيح'})
+
+    try:
+        users_ref = db.collection('users')
+        query = users_ref.where('email', '==', email).limit(1)
+        results = list(query.stream())
+
+        if results:
+            user_doc = results[0]
+            user_id = user_doc.id
+            user_ref = users_ref.document(user_id)
+            print(f"✅ تم العثور على المستخدم: {user_id}")
+        else:
+            return jsonify({'success': False, 'message': 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني'})
+
+        # توليد وحفظ الكود
+        new_code = generate_code()
+        user_ref.update({
+            'verification_code': new_code,
+            'code_time': time.time()
+        })
+        
+        # إرسال الإيميل
+        if send_email_otp(email, new_code):
+            return jsonify({'success': True, 'message': f'✅ تم إرسال الرمز إلى {email}', 'email': email})
+        else:
+            # إذا فشل الإيميل، نحاول إرسال عبر Telegram
+            try:
+                user_data = user_doc.to_dict()
+                message_text = f"📧 كود التحقق للدخول:\n\n<code>{new_code}</code>\n\n⏰ صالح لمدة 10 دقائق"
+                bot.send_message(int(user_id), message_text, parse_mode='HTML')
+                return jsonify({'success': True, 'message': '✅ تم إرسال الرمز عبر Telegram (خدمة الإيميل غير متاحة)', 'email': email})
+            except:
+                return jsonify({'success': False, 'message': 'فشل الإرسال! تأكد من إعدادات الإيميل'})
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'حدث خطأ في النظام'})
+
+
+@auth_bp.route('/api/auth/login', methods=['POST'])
+def login_email():
+    """التحقق من الكود وتسجيل الدخول بالإيميل"""
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+        
+    email = data.get('email', '').strip().lower()
+    code = data.get('code', '').strip()
+    
+    if not email or not code:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال البريد والكود'})
+    
+    try:
+        query = db.collection('users').where('email', '==', email).limit(1)
+        results = list(query.stream())
+        
+        if not results:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+            
+        user_doc = results[0]
+        user_data = user_doc.to_dict()
+        
+        # التحقق من انتهاء صلاحية الكود (10 دقائق)
+        code_time = user_data.get('code_time', 0)
+        if time.time() - code_time > 600:
+            return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، اطلب كود جديد'})
+        
+        # التحقق من الكود
+        saved_code = str(user_data.get('verification_code', ''))
+        if saved_code == code:
+            # دخول ناجح
+            session['user_id'] = user_doc.id
+            session['user_name'] = user_data.get('username', user_data.get('first_name', 'مستخدم'))
+            session['user_email'] = email
+            session['logged_in'] = True
+            session.permanent = True
+            
+            # مسح الكود بعد الاستخدام
+            db.collection('users').document(user_doc.id).update({
+                'verification_code': None,
+                'code_time': None
+            })
+            
+            print(f"✅ تم تسجيل دخول المستخدم: {user_doc.id}")
+            return jsonify({'success': True, 'message': 'تم تسجيل الدخول بنجاح'})
+        else:
+            return jsonify({'success': False, 'message': 'الكود غير صحيح'})
+            
+    except Exception as e:
+        print(f"❌ Login Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'حدث خطأ أثناء الدخول'})
+

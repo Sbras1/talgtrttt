@@ -1285,8 +1285,12 @@
                 btn.innerHTML = '⏳ جاري الإرسال...';
                 errorDiv.style.display = 'none';
                 
+                // حفظ الإيميل للاستخدام في التحقق لاحقاً
+                window.loginEmail = email;
+                
                 try {
-                    const response = await fetch('/api/send_code_by_email', {
+                    // استخدام المسار الجديد للإيميل
+                    const response = await fetch('/api/auth/send-code', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: email })
@@ -1294,7 +1298,6 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        currentUserId = data.user_id;
                         document.getElementById('step1').classList.remove('active');
                         document.getElementById('step2').classList.add('active');
                         startCountdown();
@@ -1369,14 +1372,28 @@
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
             try {
-                const response = await fetch('/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        user_id: currentUserId,
-                        code: code 
-                    })
-                });
+                let response;
+                // إذا كان التسجيل بالإيميل
+                if (window.loginEmail) {
+                    response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            email: window.loginEmail,
+                            code: code 
+                        })
+                    });
+                } else {
+                    // التسجيل العادي بـ Telegram ID
+                    response = await fetch('/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            user_id: currentUserId,
+                            code: code 
+                        })
+                    });
+                }
                 const data = await response.json();
                 if (data.success) {
                     if (data.requires_2fa) {
@@ -1392,6 +1409,7 @@
                         successDiv.textContent = ' تم التحقق! جاري نقلك...';
                         successDiv.style.display = 'block';
                         clearInterval(countdownInterval);
+                        window.loginEmail = null; // مسح الإيميل
                         setTimeout(() => {
                             location.reload();
                         }, 1500);
