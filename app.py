@@ -755,6 +755,9 @@ def send_code_by_email():
     
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'بيانات غير صالحة'}), 400
+            
         email = data.get('email', '').strip().lower()
         
         if not email:
@@ -766,12 +769,16 @@ def send_code_by_email():
             return jsonify({'success': False, 'message': 'صيغة البريد الإلكتروني غير صحيحة'}), 400
         
         # البحث عن الحساب المرتبط بهذا الإيميل
-        users_ref = db.collection('users')
-        if USE_FIELD_FILTER:
-            query = users_ref.where(filter=FieldFilter('email', '==', email)).limit(1)
-        else:
-            query = users_ref.where('email', '==', email).limit(1)
-        results = list(query.stream())
+        try:
+            users_ref = db.collection('users')
+            if USE_FIELD_FILTER:
+                query = users_ref.where(filter=FieldFilter('email', '==', email)).limit(1)
+            else:
+                query = users_ref.where('email', '==', email).limit(1)
+            results = list(query.stream())
+        except Exception as db_err:
+            print(f"❌ خطأ في البحث: {db_err}")
+            return jsonify({'success': False, 'message': 'خطأ في البحث'}), 500
         
         if not results:
             return jsonify({
@@ -795,91 +802,44 @@ def send_code_by_email():
             'created_at': time.time()
         }
         
-        # حفظ الكود في Firebase أيضاً (للتوافق)
+        # حفظ الكود في Firebase أيضاً
         try:
             db.collection('users').document(str(user_id)).update({
                 'verification_code': code,
                 'code_time': time.time()
             })
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️ تعذر حفظ الكود في Firebase: {e}")
         
-        # إعادة تعيين المحاولات الفاشلة (اختياري)
+        # إرسال الكود عبر Telegram مباشرة (الأسهل والأضمن)
         try:
-            from security_utils import reset_failed_attempts
-            reset_failed_attempts(user_id)
-        except:
-            pass  # تجاهل إذا لم يكن موجوداً
-        
-        # إرسال الكود عبر البريد الإلكتروني
-        try:
-            from services.email_service import send_otp_email, is_email_configured
-            
-            if not is_email_configured():
-                # إذا البريد غير مُعد، نرسل عبر Telegram كبديل
-                try:
-                    message_text = f"""
-📧 كود التحقق للدخول بالإيميل:
+            message_text = f"""
+📧 كود التحقق للدخول:
+
 <code>{code}</code>
 
-✉️ تم طلب الدخول باستخدام: {email}
-
-⏰ صالح لمدة 5 دقائق فقط
-⚠️ لا تشارك هذا الكود مع أحد!
-"""
-                    bot.send_message(int(user_id), message_text, parse_mode='HTML')
-                    return jsonify({
-                        'success': True, 
-                        'message': '✅ تم إرسال الكود عبر Telegram (البريد غير مُعد)',
-                        'user_id': user_id,
-                        'method': 'telegram'
-                    })
-                except:
-                    return jsonify({
-                        'success': False,
-                        'message': 'خدمة البريد غير متاحة حالياً'
-                    }), 500
-            
-            # إرسال عبر البريد الإلكتروني
-            if send_otp_email(email, code, user_name):
-                return jsonify({
-                    'success': True, 
-                    'message': f'✅ تم إرسال كود التحقق إلى {email}',
-                    'user_id': user_id,
-                    'method': 'email'
-                })
-            else:
-                # إذا فشل الإيميل، نحاول عبر Telegram
-                try:
-                    message_text = f"""
-📧 كود التحقق للدخول بالإيميل:
-<code>{code}</code>
-
-⏰ صالح لمدة 5 دقائق فقط
+✉️ الإيميل: {email}
+⏰ صالح لمدة 5 دقائق
 ⚠️ لا تشارك هذا الكود!
 """
-                    bot.send_message(int(user_id), message_text, parse_mode='HTML')
-                    return jsonify({
-                        'success': True, 
-                        'message': '✅ تم إرسال الكود عبر Telegram',
-                        'user_id': user_id,
-                        'method': 'telegram'
-                    })
-                except:
-                    return jsonify({
-                        'success': False,
-                        'message': 'فشل إرسال الكود، حاول مرة أخرى'
-                    }), 500
-        
-        except Exception as e:
-            print(f"❌ خطأ في إرسال الكود: {e}")
+            bot.send_message(int(user_id), message_text, parse_mode='HTML')
+            return jsonify({
+                'success': True, 
+                'message': '✅ تم إرسال الكود عبر Telegram',
+                'user_id': user_id,
+                'method': 'telegram'
+            })
+        except Exception as tg_err:
+            print(f"❌ فشل إرسال Telegram: {tg_err}")
             return jsonify({
                 'success': False,
-                'message': 'فشل إرسال الكود'
+                'message': 'فشل إرسال الكود، تأكد من بدء محادثة مع البوت'
             }), 500
     
     except Exception as e:
-        print(f"❌ خطأ: {e}")
+        print(f"❌ خطأ عام: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': 'حدث خطأ في السيرفر'}), 500
 
 
