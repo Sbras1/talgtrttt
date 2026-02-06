@@ -315,14 +315,14 @@ def send_email_otp(to_email, code):
         msg.attach(MIMEText(f"رمز التحقق: {code}", 'plain', 'utf-8'))
         msg.attach(MIMEText(html_body, 'html', 'utf-8'))
 
-        print(f"📧 محاولة إرسال إيميل إلى: {to_email}")
+        print(f"📧 محاولة إرسال إيميل إلى: {to_email} عبر {SMTP_SERVER}:{SMTP_PORT}")
         
-        # استخدام SSL (port 465) مع timeout قصير
+        # استخدام الإعدادات من config
         import socket
         
-        # محاولة SSL أولاً (أكثر استقراراً)
+        # محاولة SSL أولاً (port 465)
         try:
-            with smtplib.SMTP_SSL(SMTP_SERVER, 465, timeout=10) as server:
+            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=15) as server:
                 server.login(SMTP_EMAIL, SMTP_PASSWORD)
                 server.send_message(msg)
                 print(f"✅ تم إرسال الإيميل بنجاح إلى: {to_email}")
@@ -330,9 +330,9 @@ def send_email_otp(to_email, code):
         except Exception as ssl_error:
             print(f"⚠️ فشل SSL: {ssl_error}, جاري تجربة TLS...")
             
-        # محاولة TLS كخيار ثاني
+        # محاولة TLS كخيار ثاني (port 587)
         try:
-            with smtplib.SMTP(SMTP_SERVER, 587, timeout=10) as server:
+            with smtplib.SMTP(SMTP_SERVER, 587, timeout=15) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
@@ -346,7 +346,7 @@ def send_email_otp(to_email, code):
         
     except smtplib.SMTPAuthenticationError as e:
         print(f"❌ خطأ في المصادقة: {e}")
-        print("💡 تأكد من استخدام App Password وليس كلمة المرور العادية")
+        print("💡 تأكد من كلمة المرور الصحيحة")
         return False
     except Exception as e:
         print(f"❌ خطأ في إرسال الإيميل: {e}")

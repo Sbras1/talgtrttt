@@ -91,9 +91,10 @@ TABBY_SK = TABBY_SA_SK or os.environ.get("TABBY_SK", "")
 TABBY_MERCHANT_CODE = TABBY_SA_MERCHANT_CODE or os.environ.get("TABBY_MERCHANT_CODE", "")
 TABBY_API_URL = "https://api.tabby.ai/api/v2/checkout"
 
-# === إعدادات البريد الإلكتروني (Gmail SMTP) ===
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587  # منفذ TLS
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")  # إيميل Gmail
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")  # App Password (16 حرف)
+# === إعدادات البريد الإلكتروني (SMTP) ===
+# يمكن تغييرها من Render Environment Variables
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "mail.privateemail.com")  # Namecheap افتراضي
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))  # منفذ SSL
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")  # الإيميل
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")  # كلمة المرور
 SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "TR Store")  # اسم المرسل
