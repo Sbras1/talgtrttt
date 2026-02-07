@@ -98,3 +98,9 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))  # منفذ SSL
 SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")  # الإيميل
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")  # كلمة المرور
 SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "TR Store")  # اسم المرسل
+
+# === إعدادات Authentica (WhatsApp/SMS OTP) ===
+AUTHENTICA_API_KEY = os.environ.get("AUTHENTICA_API_KEY", "")
+AUTHENTICA_API_URL = "https://api.authentica.sa/api/v2"
+AUTHENTICA_DEFAULT_METHOD = os.environ.get("AUTHENTICA_METHOD", "whatsapp")  # whatsapp, sms, email
+AUTHENTICA_TEMPLATE_ID = os.environ.get("AUTHENTICA_TEMPLATE_ID", "1")  # قالب الرسالة

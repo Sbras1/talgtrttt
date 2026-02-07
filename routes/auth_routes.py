@@ -11,6 +11,19 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config import SMTP_SERVER, SMTP_PORT, SMTP_EMAIL, SMTP_PASSWORD
 
+# خدمة Authentica لـ WhatsApp/SMS
+try:
+    from services.authentica_service import (
+        send_otp_whatsapp, 
+        verify_otp_authentica, 
+        is_authentica_configured,
+        format_phone_number
+    )
+    AUTHENTICA_AVAILABLE = True
+except ImportError:
+    AUTHENTICA_AVAILABLE = False
+    is_authentica_configured = lambda: False
+
 logger = logging.getLogger(__name__)
 
 # استيراد نظام كشف الدخول الجديد
@@ -467,3 +480,180 @@ def login_email():
         traceback.print_exc()
         return jsonify({'success': False, 'message': 'حدث خطأ أثناء الدخول'})
 
+
+# ==================== تسجيل الدخول بالجوال (WhatsApp) ====================
+
+@auth_bp.route('/api/auth/send-code-phone', methods=['POST'])
+def send_code_phone():
+    """إرسال كود التحقق للجوال عبر WhatsApp"""
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+    
+    phone = data.get('phone', '').strip()
+    
+    if not phone:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال رقم الجوال'})
+    
+    # التحقق من صيغة الرقم
+    if not validate_phone(phone):
+        return jsonify({'success': False, 'message': 'رقم الجوال غير صحيح'})
+    
+    try:
+        # البحث عن المستخدم برقم الجوال
+        users_ref = db.collection('users')
+        
+        # تنسيق الرقم للبحث
+        search_phones = [phone]
+        if phone.startswith('05'):
+            search_phones.append('+966' + phone[1:])
+            search_phones.append('966' + phone[1:])
+        elif phone.startswith('+966'):
+            search_phones.append('0' + phone[4:])
+            search_phones.append(phone[1:])  # بدون +
+        
+        user_doc = None
+        user_id = None
+        
+        for search_phone in search_phones:
+            query = users_ref.where('phone', '==', search_phone).limit(1)
+            results = list(query.stream())
+            if results:
+                user_doc = results[0]
+                user_id = user_doc.id
+                break
+        
+        if not user_doc:
+            return jsonify({'success': False, 'message': 'لا يوجد حساب مرتبط بهذا الرقم'})
+        
+        # توليد كود عشوائي
+        new_code = generate_code()
+        
+        # حفظ الكود في Firebase
+        users_ref.document(user_id).update({
+            'verification_code': new_code,
+            'code_time': time.time()
+        })
+        
+        # التحقق من توفر Authentica
+        if not AUTHENTICA_AVAILABLE or not is_authentica_configured():
+            # Fallback: إرسال عبر Telegram
+            try:
+                message_text = f"📱 كود التحقق للدخول:\n\n<code>{new_code}</code>\n\n☕️ صالح لمدة 10 دقائق"
+                bot.send_message(int(user_id), message_text, parse_mode='HTML')
+                return jsonify({
+                    'success': True, 
+                    'message': '✅ تم إرسال الكود عبر Telegram',
+                    'user_id': user_id,
+                    'method': 'telegram'
+                })
+            except:
+                return jsonify({'success': False, 'message': 'خدمة الرسائل غير متاحة'})
+        
+        # إرسال عبر WhatsApp
+        result = send_otp_whatsapp(phone, otp_code=new_code)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': '✅ تم إرسال الكود عبر واتساب',
+                'user_id': user_id,
+                'method': 'whatsapp'
+            })
+        else:
+            # Fallback: إرسال عبر Telegram
+            try:
+                message_text = f"📱 كود التحقق للدخول:\n\n<code>{new_code}</code>\n\n☕️ صالح لمدة 10 دقائق"
+                bot.send_message(int(user_id), message_text, parse_mode='HTML')
+                return jsonify({
+                    'success': True, 
+                    'message': '✅ تم إرسال الكود عبر Telegram (واتساب غير متاح)',
+                    'user_id': user_id,
+                    'method': 'telegram'
+                })
+            except:
+                return jsonify({'success': False, 'message': result['message']})
+    
+    except Exception as e:
+        print(f"❌ Phone Send Code Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'حدث خطأ في النظام'})
+
+
+@auth_bp.route('/api/auth/login-phone', methods=['POST'])
+def login_phone():
+    """التحقق من الكود وتسجيل الدخول بالجوال"""
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+    
+    phone = data.get('phone', '').strip()
+    code = data.get('code', '').strip()
+    user_id = data.get('user_id', '').strip()  # يمكن تمريره من الخطوة السابقة
+    
+    if not code:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال الكود'})
+    
+    try:
+        # إذا لم يتم تمرير user_id، نبحث بالجوال
+        if not user_id and phone:
+            users_ref = db.collection('users')
+            search_phones = [phone]
+            if phone.startswith('05'):
+                search_phones.append('+966' + phone[1:])
+            elif phone.startswith('+966'):
+                search_phones.append('0' + phone[4:])
+            
+            for search_phone in search_phones:
+                query = users_ref.where('phone', '==', search_phone).limit(1)
+                results = list(query.stream())
+                if results:
+                    user_id = results[0].id
+                    break
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        
+        # جلب بيانات المستخدم
+        user_doc = db.collection('users').document(str(user_id)).get()
+        if not user_doc.exists:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        
+        user_data = user_doc.to_dict()
+        
+        # التحقق من انتهاء صلاحية الكود (10 دقائق)
+        code_time = user_data.get('code_time', 0)
+        if time.time() - code_time > 600:
+            return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، اطلب كود جديد'})
+        
+        # التحقق من الكود
+        saved_code = str(user_data.get('verification_code', ''))
+        if saved_code != code:
+            return jsonify({'success': False, 'message': 'الكود غير صحيح'})
+        
+        # ✅ تسجيل دخول ناجح
+        regenerate_session()
+        
+        session['user_id'] = user_id
+        session['user_name'] = user_data.get('username', user_data.get('first_name', 'مستخدم'))
+        session['user_phone'] = phone
+        session['logged_in'] = True
+        session['login_time'] = time.time()
+        session.permanent = True
+        session.modified = True
+        
+        # مسح الكود
+        db.collection('users').document(str(user_id)).update({
+            'verification_code': None,
+            'code_time': None
+        })
+        
+        print(f"✅ تم تسجيل دخول المستخدم بالجوال: {user_id}")
+        return jsonify({'success': True, 'message': 'تم تسجيل الدخول بنجاح'})
+        
+    except Exception as e:
+        print(f"❌ Phone Login Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'حدث خطأ أثناء الدخول'})

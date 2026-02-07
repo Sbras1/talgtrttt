@@ -356,12 +356,15 @@ document.getElementById('verifyForm').addEventListener('submit', async function(
 
 اذهب إلى **Render Dashboard** → **Environment** وأضف:
 
-| المتغير | القيمة | مثال |
-|---------|--------|------|
+| المتغير | الوصف | مثال |
+|---------|-------|------|
 | `SMTP_SERVER` | سيرفر البريد | `mail.privateemail.com` |
-| `SMTP_PORT` | المنفذ | `465` |
+| `SMTP_PORT` | المنفذ (465 لـ SSL، 587 لـ TLS) | `465` |
 | `SMTP_EMAIL` | إيميل المرسل | `tr@gamerstr1.com` |
 | `SMTP_PASSWORD` | كلمة المرور | `yourpassword123` |
+| `SMTP_FROM_NAME` | اسم المرسل (اختياري) | `TR Store` |
+
+**ملاحظة:** `SMTP_FROM_NAME` اختياري، القيمة الافتراضية `TR Store`
 
 ---
 
@@ -445,6 +448,62 @@ Response (فشل):
 }
 ```
 
+### إرسال كود بالإيميل (البديل في app.py)
+
+**الملف:** `app.py`
+**الميزات الإضافية:**
+- Rate Limiting: 3 طلبات/دقيقة
+- حفظ الكود في الذاكرة + Firebase
+- استخدام `email_service.py`
+- Fallback تلقائي لـ Telegram
+
+```
+POST /api/send_code_by_email
+Content-Type: application/json
+
+Request:
+{
+    "email": "user@example.com"
+}
+
+Response (نجاح - إيميل):
+{
+    "success": true,
+    "message": "✅ تم إرسال كود التحقق إلى user@example.com",
+    "user_id": "123456789",
+    "method": "email"
+}
+
+Response (نجاح - Telegram كبديل):
+{
+    "success": true,
+    "message": "✅ تم إرسال الكود عبر Telegram (خدمة الإيميل غير متاحة)",
+    "user_id": "123456789",
+    "method": "telegram"
+}
+
+Response (فشل):
+{
+    "success": false,
+    "message": "لا يوجد حساب مرتبط بهذا البريد الإلكتروني"
+}
+```
+
+### مقارنة بين الـ Endpoints
+
+| الميزة | `/api/auth/send-code` | `/api/send_code_by_email` |
+|--------|----------------------|---------------------------|
+| **الملف** | auth_routes.py | app.py |
+| **Rate Limiting** | يدوي (5 محاولات) | `@limiter` (3/دقيقة) |
+| **حفظ الكود** | Firebase فقط | ذاكرة + Firebase |
+| **خدمة الإيميل** | `send_email_otp()` محلية | `email_service.py` |
+| **تصميم الإيميل** | بنفسجي/أبيض | أسود/أخضر نيون |
+| **صلاحية الكود** | 10 دقائق | 5 دقائق |
+| **Fallback** | Telegram | Telegram |
+| **يرجع user_id** | ❌ | ✅ |
+
+**ملاحظة:** يمكنك استخدام أي منهما حسب احتياجك. الأول أبسط، والثاني فيه ميزات أكثر.
+
 ---
 
 ## 🗄️ بنية Firebase المطلوبة
@@ -510,13 +569,451 @@ Response (فشل):
 
 ---
 
+## � الدوال المساعدة المطلوبة
+
+### دالة توليد الكود العشوائي
+
+**الملف:** `utils.py`
+**الوظيفة:** توليد كود مكون من 6 أرقام
+
+```python
+import random
+
+def generate_code():
+    """توليد كود تحقق عشوائي من 6 أرقام"""
+    return str(random.randint(100000, 999999))
+```
+
+---
+
+### دالة تجديد الجلسة
+
+**الملف:** `utils.py`
+**الوظيفة:** تجديد الجلسة للأمان عند تسجيل الدخول (منع Session Fixation Attack)
+
+```python
+from flask import session
+
+def regenerate_session():
+    """تجديد ID الجلسة لمنع Session Fixation"""
+    # حفظ كل البيانات الحالية
+    old_data = dict(session)
+    
+    # مسح الجلسة القديمة (يولّد session ID جديد)
+    session.clear()
+    
+    # إعادة كل البيانات للجلسة الجديدة
+    session.update(old_data)
+    
+    # إجبار حفظ التغييرات
+    session.modified = True
+```
+
+**ملاحظة أمنية:** هذه الدالة تُستدعى عند تسجيل الدخول الناجح لمنع هجمات Session Fixation حيث يحاول المهاجم تثبيت session ID معين قبل تسجيل الدخول.
+
+---
+
+## ⚙️ إعدادات Session في config.py
+
+**الملف:** `config.py`
+**المكان:** أضف مع الإعدادات الأخرى
+
+```python
+from datetime import timedelta
+
+# === إعدادات الجلسة ===
+SESSION_CONFIG = {
+    'SESSION_COOKIE_SECURE': True,  # HTTPS فقط
+    'SESSION_COOKIE_HTTPONLY': True,  # منع JavaScript من الوصول
+    'SESSION_COOKIE_SAMESITE': 'Lax',  # حماية CSRF
+    'PERMANENT_SESSION_LIFETIME': timedelta(minutes=30),  # 30 دقيقة
+    'SESSION_COOKIE_NAME': 'tr_session',
+}
+```
+
+**ثم في `app.py`:**
+```python
+from config import SESSION_CONFIG
+
+app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key")
+app.config.update(SESSION_CONFIG)
+```
+
+---
+
+## 🔗 تسجيل Blueprint في app.py
+
+**الملف:** `app.py`
+**المكان:** مع باقي الـ blueprints
+
+```python
+# في أعلى الملف - Import
+from routes.auth_routes import auth_bp
+
+# بعد إنشاء app - Registration
+app.register_blueprint(auth_bp)
+```
+
+**ملاحظة:** تأكد أن ملف `routes/auth_routes.py` يحتوي على:
+```python
+from flask import Blueprint
+
+auth_bp = Blueprint('auth', __name__)
+```
+
+---
+
+## 🎨 CSS للواجهة
+
+**الملف:** `templates/categories.html` أو `static/css/style.css`
+
+```css
+/* === نموذج تسجيل الدخول === */
+.login-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.login-container {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* الخطوات */
+.step {
+    display: none;
+}
+
+.step.active {
+    display: block;
+}
+
+/* حقول الإدخال */
+.login-container input {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    margin-bottom: 15px;
+    transition: border-color 0.3s;
+}
+
+.login-container input:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+/* حقل الكود */
+.code-input {
+    text-align: center;
+    font-size: 24px !important;
+    letter-spacing: 8px;
+    font-weight: bold;
+}
+
+/* الأزرار */
+.login-container button {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.login-container button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.login-container button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* رسائل الخطأ */
+.error-msg {
+    background: #fee;
+    color: #c00;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: none;
+    font-size: 14px;
+}
+
+/* رسائل النجاح */
+.success-msg {
+    background: #efe;
+    color: #080;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: none;
+    font-size: 14px;
+}
+
+/* العد التنازلي */
+.countdown {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-top: 15px;
+}
+
+.countdown span {
+    color: #667eea;
+    font-weight: bold;
+}
+```
+
+---
+
+## 🛡️ نظام الحماية من المحاولات المتكررة (Rate Limiting)
+
+**الملف:** `routes/auth_routes.py`
+**الوظيفة:** حماية من هجمات Brute Force على تسجيل الدخول
+
+### كيف يعمل؟
+
+1. **تتبع المحاولات الفاشلة** بناءً على IP
+2. **5 محاولات فاشلة** → حظر 15 دقيقة
+3. **إعادة تعيين** العداد بعد 15 دقيقة من آخر محاولة
+4. **مسح العداد** عند تسجيل دخول ناجح
+
+### الكود:
+
+```python
+# تخزين مؤقت لمحاولات الدخول الفاشلة
+login_failed_attempts = {}  # {ip: {'count': 0, 'blocked_until': 0, 'last_attempt': 0}}
+
+def check_login_rate_limit():
+    """التحقق من rate limit لتسجيل الدخول"""
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    current_time = time.time()
+    
+    if client_ip in login_failed_attempts:
+        attempt_data = login_failed_attempts[client_ip]
+        
+        # التحقق من الحظر
+        if attempt_data.get('blocked_until', 0) > current_time:
+            remaining = int(attempt_data['blocked_until'] - current_time)
+            return False, f'⛔ تم حظرك مؤقتاً. حاول بعد {remaining} ثانية'
+        
+        # إعادة تعيين العداد بعد 15 دقيقة من آخر محاولة
+        if current_time - attempt_data.get('last_attempt', 0) > 900:
+            login_failed_attempts[client_ip] = {'count': 0, 'blocked_until': 0, 'last_attempt': current_time}
+    
+    return True, None
+
+def record_failed_login():
+    """تسجيل محاولة دخول فاشلة"""
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    current_time = time.time()
+    
+    if client_ip not in login_failed_attempts:
+        login_failed_attempts[client_ip] = {'count': 0, 'blocked_until': 0, 'last_attempt': current_time}
+    
+    login_failed_attempts[client_ip]['count'] += 1
+    login_failed_attempts[client_ip]['last_attempt'] = current_time
+    
+    attempts = login_failed_attempts[client_ip]['count']
+    
+    # حظر بعد 5 محاولات فاشلة لمدة 15 دقيقة
+    if attempts >= 5:
+        login_failed_attempts[client_ip]['blocked_until'] = current_time + 900  # 15 دقيقة
+        return 0
+    
+    return 5 - attempts  # عدد المحاولات المتبقية
+
+def reset_login_attempts():
+    """إعادة تعيين عداد المحاولات بعد دخول ناجح"""
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip:
+        client_ip = client_ip.split(',')[0].strip()
+    
+    if client_ip in login_failed_attempts:
+        del login_failed_attempts[client_ip]
+```
+
+### استخدام في الـ Endpoint:
+
+```python
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    # 🔒 التحقق من Rate Limit أولاً
+    allowed, error_msg = check_login_rate_limit()
+    if not allowed:
+        return jsonify({'success': False, 'message': error_msg})
+    
+    # ... باقي الكود ...
+    
+    if login_failed:
+        remaining = record_failed_login()
+        return jsonify({'success': False, 'message': f'كود خاطئ. متبقي {remaining} محاولات'})
+    
+    # عند النجاح
+    reset_login_attempts()
+```
+
+---
+
+## 📧 خدمة البريد الإلكتروني المنفصلة (اختياري)
+
+**الملف:** `services/email_service.py`
+**الوظيفة:** خدمة إيميل متقدمة مع تصميم مختلف (أسود/أخضر)
+
+### ملاحظة:
+هذا الملف موجود كبديل/إضافة لـ `send_email_otp()` في `auth_routes.py`. يمكنك استخدام أي منهما.
+
+### الدوال المتوفرة:
+
+| الدالة | الوظيفة |
+|--------|--------|
+| `is_email_configured()` | التحقق من إعداد SMTP |
+| `send_otp_email(to, code, name)` | إرسال كود التحقق |
+| `send_notification_email(to, subject, msg)` | إرسال إشعار عام |
+
+### الاختلاف عن auth_routes:
+
+| البند | `auth_routes.py` | `email_service.py` |
+|-------|------------------|--------------------|
+| التصميم | بنفسجي/أبيض | أسود/أخضر نيون |
+| صلاحية الكود | 10 دقائق | 5 دقائق (في النص) |
+| الاتصال | SSL ثم TLS | TLS فقط |
+
+### كود مختصر:
+
+```python
+# services/email_service.py
+from config import SMTP_SERVER, SMTP_PORT, SMTP_EMAIL, SMTP_PASSWORD, SMTP_FROM_NAME
+
+def is_email_configured():
+    """التحقق من إعداد خدمة البريد الإلكتروني"""
+    return bool(SMTP_EMAIL and SMTP_PASSWORD)
+
+def send_otp_email(to_email, otp_code, user_name="عميلنا العزيز"):
+    """إرسال كود التحقق عبر البريد الإلكتروني"""
+    if not is_email_configured():
+        return False
+    
+    # ... إعداد الرسالة مع تصميم HTML ...
+    
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+        server.send_message(msg)
+    
+    return True
+```
+
+---
+
+## 🌐 إعداد DNS لـ Namecheap Private Email
+
+إذا كنت تستخدم دومين خاص (مثل `gamerstr1.com`)، يجب إضافة سجلات DNS:
+
+### الخطوات:
+
+1. اذهب إلى **Namecheap** → **Dashboard**
+2. اضغط على **Domain List**
+3. بجانب الدومين اضغط **Manage**
+4. اضغط على **Advanced DNS**
+5. أضف السجلات التالية:
+
+### سجلات MX (للاستقبال):
+
+| Type | Host | Value | Priority |
+|------|------|-------|----------|
+| MX | @ | mx1.privateemail.com | 10 |
+| MX | @ | mx2.privateemail.com | 10 |
+
+### سجل SPF (للإرسال):
+
+| Type | Host | Value |
+|------|------|-------|
+| TXT | @ | v=spf1 include:spf.privateemail.com ~all |
+
+### سجل DKIM (اختياري - لتحسين التسليم):
+
+| Type | Host | Value |
+|------|------|-------|
+| TXT | default._domainkey | (احصل عليه من Namecheap Email Settings) |
+
+### ملاحظات:
+- انتظر **1-4 ساعات** حتى تنتشر الإعدادات
+- يمكنك التحقق من https://mxtoolbox.com/
+
+---
+
 ## 📁 الملفات المتعلقة
 
 ```
-├── config.py                    # إعدادات SMTP
-├── routes/auth_routes.py        # API endpoints + إرسال الإيميل
-└── templates/categories.html    # واجهة المستخدم
+├── config.py                    # إعدادات SMTP + Session + SMTP_FROM_NAME
+├── utils.py                     # generate_code() + regenerate_session()
+├── app.py                       # تسجيل Blueprint + Session config
+├── routes/auth_routes.py        # API endpoints + إرسال الإيميل + Rate Limiting
+├── services/email_service.py    # خدمة إيميل بديلة (تصميم أسود/أخضر)
+├── templates/categories.html    # واجهة المستخدم
+└── static/css/style.css         # التنسيقات (اختياري)
 ```
+
+---
+
+## ✅ قائمة التحقق قبل التشغيل
+
+### الإعدادات:
+- [ ] إضافة إعدادات SMTP في `config.py`
+- [ ] إضافة `SMTP_FROM_NAME` في `config.py`
+- [ ] إضافة إعدادات Session في `config.py`
+
+### الدوال المساعدة:
+- [ ] إضافة `generate_code()` في `utils.py`
+- [ ] إضافة `regenerate_session()` في `utils.py`
+
+### نظام المصادقة:
+- [ ] إضافة imports في `routes/auth_routes.py`
+- [ ] إضافة Rate Limiting (check, record, reset)
+- [ ] إضافة دالة `send_email_otp()` في `routes/auth_routes.py`
+- [ ] إضافة endpoint `/api/auth/send-code`
+- [ ] إضافة endpoint `/api/auth/login`
+
+### التكامل:
+- [ ] تسجيل Blueprint في `app.py`
+- [ ] تطبيق Session config في `app.py`
+
+### الواجهة:
+- [ ] إضافة HTML + JavaScript في الواجهة
+- [ ] إضافة CSS للتنسيق
+
+### البيئة:
+- [ ] إعداد Environment Variables في Render (5 متغيرات)
+- [ ] إضافة حقل `email` للمستخدمين في Firebase
+- [ ] إعداد DNS (إذا كان دومين خاص)
 
 ---
 

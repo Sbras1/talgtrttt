@@ -825,13 +825,14 @@
                             <input type="text" id="userId" placeholder="مثال: 123456789" inputmode="numeric" autocomplete="off">
                         </div>
                         <div class="switch-method">
-                            <a onclick="switchToEmail()">📧 التسجيل بالإيميل</a>
+                            <a onclick="switchToPhone()">📱 التسجيل بالجوال</a>
                         </div>
                         <button type="submit" id="sendCodeBtn">إرسال كود التحقق</button>
                     </form>
                     <div class="help-text">💡 لا تعرف رقمك؟ أرسل /id للبوت</div>
                 </div>
-                <div id="emailSection" class="login-section">
+                <!-- قسم الإيميل مخفي مؤقتاً -->
+                <div id="emailSection" class="login-section" style="display: none !important;">
                     <form id="emailForm">
                         <div class="form-group">
                             <label>📧 البريد الإلكتروني</label>
@@ -844,8 +845,7 @@
                     </form>
                     <div class="help-text">✉️ سيصلك الكود على بريدك الإلكتروني</div>
                 </div>
-                <!-- قسم الجوال مخفي مؤقتاً -->
-                <div id="phoneSection" class="login-section" style="display: none !important;">
+                <div id="phoneSection" class="login-section">
                     <form id="phoneForm">
                         <div class="form-group">
                             <label>📱 رقم الجوال</label>
@@ -1316,6 +1316,10 @@
                 }
             });
         }
+        
+        // === تسجيل الدخول بالجوال (WhatsApp) ===
+        window.loginPhone = null;  // حفظ رقم الجوال للخطوة التالية
+        
         document.getElementById('phoneForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const phone = document.getElementById('loginPhone').value.trim();
@@ -1328,17 +1332,29 @@
                 return;
             }
             btn.disabled = true;
-            btn.innerHTML = ' جاري البحث...';
+            btn.innerHTML = ' جاري الإرسال عبر واتساب...';
             errorDiv.style.display = 'none';
             try {
-                const response = await fetch('/api/send_code_by_phone', {
+                const response = await fetch('/api/auth/send-code-phone', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone: phone })
                 });
                 const data = await response.json();
                 if (data.success) {
+                    window.loginPhone = phone;  // حفظ الجوال
                     currentUserId = data.user_id;
+                    
+                    // تحديث رسالة الخطوة 2
+                    const step2Header = document.querySelector('#step2 .modal-header p');
+                    if (step2Header) {
+                        if (data.method === 'whatsapp') {
+                            step2Header.textContent = 'أدخل الكود المرسل لك عبر واتساب';
+                        } else if (data.method === 'telegram') {
+                            step2Header.textContent = 'أدخل الكود المرسل لك في Telegram';
+                        }
+                    }
+                    
                     document.getElementById('step1').classList.remove('active');
                     document.getElementById('step2').classList.add('active');
                     startCountdown();
@@ -1383,7 +1399,20 @@
                             code: code 
                         })
                     });
-                } else {
+                } 
+                // إذا كان التسجيل بالجوال (WhatsApp)
+                else if (window.loginPhone) {
+                    response = await fetch('/api/auth/login-phone', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            phone: window.loginPhone,
+                            user_id: currentUserId,
+                            code: code 
+                        })
+                    });
+                }
+                else {
                     // التسجيل العادي بـ Telegram ID
                     response = await fetch('/verify', {
                         method: 'POST',
@@ -1410,6 +1439,7 @@
                         successDiv.style.display = 'block';
                         clearInterval(countdownInterval);
                         window.loginEmail = null; // مسح الإيميل
+                        window.loginPhone = null; // مسح الجوال
                         setTimeout(() => {
                             location.reload();
                         }, 1500);
@@ -1448,6 +1478,8 @@
         }
         function goBackStep() {
             clearInterval(countdownInterval);
+            window.loginPhone = null;  // مسح الجوال
+            window.loginEmail = null;  // مسح الإيميل
             document.getElementById('step2').classList.remove('active');
             document.getElementById('step1').classList.add('active');
             document.getElementById('userId').value = '';
@@ -1462,6 +1494,8 @@
             document.getElementById('sendCodePhoneBtn').innerHTML = ' إرسال كود التحقق';
         }
         function goBackToStep1() {
+            window.loginPhone = null;  // مسح الجوال
+            window.loginEmail = null;  // مسح الإيميل
             document.getElementById('step3').classList.remove('active');
             document.getElementById('step1').classList.add('active');
             document.getElementById('userId').value = '';
