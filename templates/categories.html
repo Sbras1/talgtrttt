@@ -1145,7 +1145,10 @@
     <script>
         let countdownInterval;
         let secondsLeft = 120;
-        let currentUserId = '';
+        // استعادة البيانات من sessionStorage عند إعادة تحميل الصفحة
+        let currentUserId = sessionStorage.getItem('currentUserId') || '';
+        window.loginEmail = sessionStorage.getItem('loginEmail') || null;
+        
         function openLoginModal() {
             console.log('Opening login modal...');
             const modal = document.getElementById('loginModal');
@@ -1285,9 +1288,6 @@
                 btn.innerHTML = '⏳ جاري الإرسال...';
                 errorDiv.style.display = 'none';
                 
-                // حفظ الإيميل للاستخدام في التحقق لاحقاً
-                window.loginEmail = email;
-                
                 try {
                     // استخدام المسار الجديد للإيميل
                     const response = await fetch('/api/auth/send-code', {
@@ -1298,6 +1298,10 @@
                     const data = await response.json();
                     
                     if (data.success) {
+                        // حفظ الإيميل للاستخدام في التحقق لاحقاً
+                        window.loginEmail = email;
+                        sessionStorage.setItem('loginEmail', email);
+                        
                         document.getElementById('step1').classList.remove('active');
                         document.getElementById('step2').classList.add('active');
                         startCountdown();
@@ -1318,7 +1322,8 @@
         }
         
         // === تسجيل الدخول بالجوال (WhatsApp) ===
-        window.loginPhone = null;  // حفظ رقم الجوال للخطوة التالية
+        // استخدام sessionStorage لحفظ البيانات حتى لو أُعيد تحميل الصفحة
+        window.loginPhone = sessionStorage.getItem('loginPhone') || null;
         
         document.getElementById('phoneForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -1343,7 +1348,9 @@
                 const data = await response.json();
                 if (data.success) {
                     window.loginPhone = phone;  // حفظ الجوال
+                    sessionStorage.setItem('loginPhone', phone);  // حفظ في sessionStorage
                     currentUserId = data.user_id;
+                    sessionStorage.setItem('currentUserId', data.user_id);  // حفظ في sessionStorage
                     
                     // تحديث رسالة الخطوة 2
                     const step2Header = document.querySelector('#step2 .modal-header p');
@@ -1438,8 +1445,12 @@
                         successDiv.textContent = ' تم التحقق! جاري نقلك...';
                         successDiv.style.display = 'block';
                         clearInterval(countdownInterval);
-                        window.loginEmail = null; // مسح الإيميل
-                        window.loginPhone = null; // مسح الجوال
+                        // مسح البيانات المؤقتة
+                        window.loginEmail = null;
+                        window.loginPhone = null;
+                        sessionStorage.removeItem('loginEmail');
+                        sessionStorage.removeItem('loginPhone');
+                        sessionStorage.removeItem('currentUserId');
                         setTimeout(() => {
                             location.reload();
                         }, 1500);
@@ -1478,8 +1489,13 @@
         }
         function goBackStep() {
             clearInterval(countdownInterval);
-            window.loginPhone = null;  // مسح الجوال
-            window.loginEmail = null;  // مسح الإيميل
+            // مسح البيانات المؤقتة
+            window.loginPhone = null;
+            window.loginEmail = null;
+            sessionStorage.removeItem('loginPhone');
+            sessionStorage.removeItem('loginEmail');
+            sessionStorage.removeItem('currentUserId');
+            
             document.getElementById('step2').classList.remove('active');
             document.getElementById('step1').classList.add('active');
             document.getElementById('userId').value = '';
@@ -1494,8 +1510,13 @@
             document.getElementById('sendCodePhoneBtn').innerHTML = ' إرسال كود التحقق';
         }
         function goBackToStep1() {
-            window.loginPhone = null;  // مسح الجوال
-            window.loginEmail = null;  // مسح الإيميل
+            // مسح البيانات المؤقتة
+            window.loginPhone = null;
+            window.loginEmail = null;
+            sessionStorage.removeItem('loginPhone');
+            sessionStorage.removeItem('loginEmail');
+            sessionStorage.removeItem('currentUserId');
+            
             document.getElementById('step3').classList.remove('active');
             document.getElementById('step1').classList.add('active');
             document.getElementById('userId').value = '';
