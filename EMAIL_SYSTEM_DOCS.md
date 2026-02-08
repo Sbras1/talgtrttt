@@ -1017,4 +1017,1140 @@ def send_otp_email(to_email, otp_code, user_name="عميلنا العزيز"):
 
 ---
 
+---
+
+# 📱 نظام تسجيل الدخول بالجوال (WhatsApp/SMS) - Authentica API
+
+## نظرة عامة
+
+نظام يسمح للمستخدمين بتسجيل الدخول باستخدام رقم الجوال بدلاً من Telegram.
+يتم إرسال كود تحقق مكون من 6 أرقام عبر **WhatsApp** أو **SMS** باستخدام خدمة **Authentica API**.
+
+**التدفق:**
+```
+المستخدم يدخل رقم الجوال → النظام يبحث في Firebase → يولّد كود 6 أرقام 
+→ يرسله عبر WhatsApp (Authentica) → المستخدم يدخل الكود 
+→ التحقق عبر Authentica API → تسجيل دخول ناجح
+```
+
+**ميزات الخدمة:**
+- ✅ إرسال OTP عبر WhatsApp (أسرع وأوفر)
+- ✅ إرسال OTP عبر SMS كبديل
+- ✅ التحقق من الكود عبر API (يظهر "Verified" في لوحة التحكم)
+- ✅ الاستعلام عن الرصيد
+- ✅ دعم الأرقام السعودية (05, +966, 966)
+
+---
+
+## 🛠️ خطوات التركيب من الصفر
+
+### الخطوة 1: إضافة إعدادات Authentica في config.py
+
+**الملف:** `config.py`
+**المكان:** أضف في نهاية الملف (بعد إعدادات SMTP)
+
+```python
+# === إعدادات Authentica API (WhatsApp/SMS OTP) ===
+# احصل على API Key من: https://portal.authentica.sa/settings/apikeys/
+AUTHENTICA_API_KEY = os.environ.get("AUTHENTICA_API_KEY", "")
+AUTHENTICA_API_URL = "https://api.authentica.sa/api/v2"
+AUTHENTICA_DEFAULT_METHOD = os.environ.get("AUTHENTICA_METHOD", "whatsapp")  # whatsapp أو sms
+AUTHENTICA_TEMPLATE_ID = os.environ.get("AUTHENTICA_TEMPLATE_ID", "1")  # رقم القالب
+```
+
+**شرح المتغيرات:**
+
+| المتغير | الوصف | القيمة الافتراضية |
+|---------|-------|-------------------|
+| `AUTHENTICA_API_KEY` | مفتاح API من Authentica Portal | (فارغ) |
+| `AUTHENTICA_API_URL` | رابط API الثابت | `https://api.authentica.sa/api/v2` |
+| `AUTHENTICA_DEFAULT_METHOD` | طريقة الإرسال الافتراضية | `whatsapp` |
+| `AUTHENTICA_TEMPLATE_ID` | رقم قالب الرسالة | `1` |
+
+---
+
+### الخطوة 2: إنشاء خدمة Authentica
+
+**الملف:** `services/authentica_service.py` ← **ملف جديد**
+**المكان:** أنشئ مجلد `services` إذا لم يكن موجوداً
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+خدمة Authentica للتحقق عبر WhatsApp/SMS
+========================================
+إرسال والتحقق من OTP عبر Authentica API
+"""
+
+import requests
+import logging
+from config import (
+    AUTHENTICA_API_KEY,
+    AUTHENTICA_API_URL,
+    AUTHENTICA_DEFAULT_METHOD,
+    AUTHENTICA_TEMPLATE_ID
+)
+
+logger = logging.getLogger(__name__)
+```
+
+---
+
+### الخطوة 3: دالة التحقق من الإعداد
+
+**الملف:** `services/authentica_service.py`
+**المكان:** بعد الـ imports
+
+```python
+def is_authentica_configured():
+    """
+    التحقق من إعداد خدمة Authentica
+    
+    Returns:
+        bool: True إذا كان API Key موجود
+    
+    الاستخدام:
+        if is_authentica_configured():
+            # الخدمة جاهزة
+        else:
+            # استخدم طريقة بديلة (Telegram)
+    """
+    return bool(AUTHENTICA_API_KEY)
+```
+
+---
+
+### الخطوة 4: دالة تنسيق رقم الجوال
+
+**الملف:** `services/authentica_service.py`
+**المكان:** بعد `is_authentica_configured()`
+
+```python
+def format_phone_number(phone):
+    """
+    تنسيق رقم الجوال للصيغة الدولية المطلوبة من Authentica
+    
+    Args:
+        phone (str): رقم الجوال بأي صيغة
+            - 05xxxxxxxx (صيغة محلية)
+            - 5xxxxxxxx (بدون صفر)
+            - 966xxxxxxx (بدون +)
+            - +966xxxxxxx (صيغة دولية)
+    
+    Returns:
+        str: الرقم بالصيغة الدولية (+966xxxxxxxxx)
+        None: إذا كان الرقم فارغ
+    
+    أمثلة:
+        >>> format_phone_number("0501234567")
+        '+966501234567'
+        
+        >>> format_phone_number("501234567")
+        '+966501234567'
+        
+        >>> format_phone_number("+966501234567")
+        '+966501234567'
+    """
+    if not phone:
+        return None
+    
+    # إزالة المسافات والرموز
+    phone = phone.strip().replace(" ", "").replace("-", "")
+    
+    # إذا بدأ بـ 05 → تحويل لـ +966
+    if phone.startswith("05"):
+        phone = "+966" + phone[1:]
+    # إذا بدأ بـ 5 فقط → إضافة +966
+    elif phone.startswith("5") and len(phone) == 9:
+        phone = "+966" + phone
+    # إذا بدأ بـ 966 بدون + → إضافة +
+    elif phone.startswith("966"):
+        phone = "+" + phone
+    # إذا لم يبدأ بـ + → إضافتها
+    elif not phone.startswith("+"):
+        phone = "+" + phone
+    
+    return phone
+```
+
+---
+
+### الخطوة 5: دالة إرسال OTP
+
+**الملف:** `services/authentica_service.py`
+**المكان:** بعد `format_phone_number()`
+
+```python
+def send_otp_whatsapp(phone, otp_code=None, method=None):
+    """
+    إرسال كود OTP عبر WhatsApp أو SMS
+    
+    Args:
+        phone (str): رقم الجوال (أي صيغة)
+        otp_code (str, optional): كود OTP مخصص
+            - إذا لم يُحدد: Authentica يولد كود تلقائياً
+            - إذا حُدد: يُرسل الكود المحدد
+        method (str, optional): طريقة الإرسال
+            - 'whatsapp': إرسال عبر واتساب (افتراضي)
+            - 'sms': إرسال رسالة نصية
+    
+    Returns:
+        dict: {
+            'success': bool,      # هل نجح الإرسال
+            'message': str,       # رسالة للمستخدم
+            'otp': str or None,   # الكود إذا كان مخصص
+            'phone': str          # الرقم بالصيغة الدولية
+        }
+    
+    الاستخدام:
+        # إرسال بكود مخصص
+        result = send_otp_whatsapp("0501234567", otp_code="123456")
+        
+        # إرسال بدون كود (Authentica يولد)
+        result = send_otp_whatsapp("0501234567")
+        
+        # إرسال عبر SMS
+        result = send_otp_whatsapp("0501234567", method="sms")
+    
+    ملاحظة:
+        - يتطلب إعداد AUTHENTICA_API_KEY
+        - القالب يجب أن يكون مفعّل في لوحة تحكم Authentica
+    """
+    if not is_authentica_configured():
+        logger.error("❌ Authentica API Key غير مُعد")
+        return {'success': False, 'message': 'خدمة الرسائل غير مُعدة', 'otp': None}
+    
+    # تنسيق رقم الجوال
+    formatted_phone = format_phone_number(phone)
+    if not formatted_phone:
+        return {'success': False, 'message': 'رقم الجوال غير صحيح', 'otp': None}
+    
+    # تحديد طريقة الإرسال
+    send_method = method or AUTHENTICA_DEFAULT_METHOD
+    
+    try:
+        # إعداد الطلب
+        headers = {
+            'X-Authorization': AUTHENTICA_API_KEY,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'method': send_method,
+            'phone': formatted_phone,
+            'template_id': AUTHENTICA_TEMPLATE_ID
+        }
+        
+        # إضافة OTP مخصص إذا تم تحديده
+        if otp_code:
+            payload['otp'] = str(otp_code)
+        
+        logger.info(f"📤 إرسال OTP عبر {send_method} إلى {formatted_phone}")
+        
+        # إرسال الطلب
+        response = requests.post(
+            f"{AUTHENTICA_API_URL}/send-otp",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        if response.status_code == 200 and result.get('success'):
+            logger.info(f"✅ تم إرسال OTP بنجاح عبر {send_method}")
+            return {
+                'success': True,
+                'message': f'تم إرسال الكود عبر {"واتساب" if send_method == "whatsapp" else "رسالة نصية"}',
+                'otp': otp_code,  # نرجع الكود إذا كان مخصص
+                'phone': formatted_phone
+            }
+        else:
+            error_msg = result.get('message', 'فشل إرسال الكود')
+            logger.error(f"❌ فشل إرسال OTP: {error_msg}")
+            return {'success': False, 'message': error_msg, 'otp': None}
+            
+    except requests.exceptions.Timeout:
+        logger.error("❌ انتهت مهلة الاتصال بـ Authentica")
+        return {'success': False, 'message': 'انتهت مهلة الاتصال، حاول مرة أخرى', 'otp': None}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ خطأ في الاتصال: {e}")
+        return {'success': False, 'message': 'خطأ في الاتصال بالخدمة', 'otp': None}
+    except Exception as e:
+        logger.error(f"❌ خطأ غير متوقع: {e}")
+        return {'success': False, 'message': 'حدث خطأ غير متوقع', 'otp': None}
+```
+
+---
+
+### الخطوة 6: دالة التحقق من OTP
+
+**الملف:** `services/authentica_service.py`
+**المكان:** بعد `send_otp_whatsapp()`
+
+```python
+def verify_otp_authentica(phone, otp_code):
+    """
+    التحقق من كود OTP عبر Authentica API
+    
+    ⚠️ مهم: هذه الدالة ترسل طلب التحقق إلى Authentica
+    حتى يظهر "Verified" في لوحة التحكم بدلاً من "Not Verified"
+    
+    Args:
+        phone (str): رقم الجوال (أي صيغة)
+        otp_code (str): الكود المدخل من المستخدم
+    
+    Returns:
+        dict: {
+            'success': bool,   # هل الكود صحيح
+            'message': str     # رسالة للمستخدم
+        }
+    
+    الاستخدام:
+        result = verify_otp_authentica("0501234567", "123456")
+        if result['success']:
+            # الكود صحيح - أكمل تسجيل الدخول
+        else:
+            # الكود خاطئ
+    
+    ملاحظة:
+        - يجب استدعاء هذه الدالة عند التحقق من الكود
+        - بدونها سيظهر "Not Verified" في لوحة تحكم Authentica
+    """
+    if not is_authentica_configured():
+        return {'success': False, 'message': 'خدمة التحقق غير مُعدة'}
+    
+    formatted_phone = format_phone_number(phone)
+    if not formatted_phone:
+        return {'success': False, 'message': 'رقم الجوال غير صحيح'}
+    
+    try:
+        headers = {
+            'X-Authorization': AUTHENTICA_API_KEY,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'phone': formatted_phone,
+            'otp': str(otp_code)
+        }
+        
+        logger.info(f"🔍 التحقق من OTP للرقم {formatted_phone}")
+        
+        response = requests.post(
+            f"{AUTHENTICA_API_URL}/verify-otp",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        result = response.json()
+        
+        # ملاحظة: Authentica ترجع 'status' وليس 'success'
+        if response.status_code == 200 and result.get('status'):
+            logger.info("✅ تم التحقق من OTP بنجاح")
+            return {'success': True, 'message': 'تم التحقق بنجاح'}
+        else:
+            error_msg = result.get('message', 'الكود غير صحيح')
+            logger.warning(f"⚠️ فشل التحقق: {error_msg}")
+            return {'success': False, 'message': error_msg}
+            
+    except Exception as e:
+        logger.error(f"❌ خطأ في التحقق: {e}")
+        return {'success': False, 'message': 'حدث خطأ أثناء التحقق'}
+```
+
+---
+
+### الخطوة 7: دالة الاستعلام عن الرصيد
+
+**الملف:** `services/authentica_service.py`
+**المكان:** في نهاية الملف
+
+```python
+def get_authentica_balance():
+    """
+    الاستعلام عن رصيد حساب Authentica
+    
+    Returns:
+        dict: {
+            'success': bool,    # هل نجح الاستعلام
+            'balance': int,     # الرصيد (عدد الرسائل المتبقية)
+            'message': str      # رسالة
+        }
+    
+    الاستخدام:
+        result = get_authentica_balance()
+        if result['success']:
+            print(f"الرصيد: {result['balance']} رسالة")
+    """
+    if not is_authentica_configured():
+        return {'success': False, 'balance': 0, 'message': 'الخدمة غير مُعدة'}
+    
+    try:
+        headers = {
+            'X-Authorization': AUTHENTICA_API_KEY,
+            'Accept': 'application/json'
+        }
+        
+        response = requests.get(
+            f"{AUTHENTICA_API_URL}/balance",
+            headers=headers,
+            timeout=15
+        )
+        
+        result = response.json()
+        
+        if response.status_code == 200 and result.get('success'):
+            balance = result.get('data', {}).get('balance', 0)
+            return {'success': True, 'balance': balance, 'message': 'تم جلب الرصيد'}
+        else:
+            return {'success': False, 'balance': 0, 'message': 'فشل جلب الرصيد'}
+            
+    except Exception as e:
+        logger.error(f"❌ خطأ في جلب الرصيد: {e}")
+        return {'success': False, 'balance': 0, 'message': 'خطأ في الاتصال'}
+```
+
+---
+
+### الخطوة 8: إضافة imports في auth_routes.py
+
+**الملف:** `routes/auth_routes.py`
+**المكان:** في أعلى الملف مع باقي الـ imports
+
+```python
+# === Authentica API (WhatsApp/SMS OTP) ===
+try:
+    from services.authentica_service import (
+        is_authentica_configured,
+        send_otp_whatsapp,
+        verify_otp_authentica,
+        format_phone_number
+    )
+    AUTHENTICA_AVAILABLE = is_authentica_configured()
+    print(f"📱 Authentica Service: {'✅ متاح' if AUTHENTICA_AVAILABLE else '❌ غير مُعد'}")
+except ImportError as e:
+    print(f"⚠️ Authentica service not available: {e}")
+    AUTHENTICA_AVAILABLE = False
+```
+
+**شرح:**
+- `try/except` للتعامل مع حالة عدم وجود الملف
+- `AUTHENTICA_AVAILABLE` متغير عام للتحقق من توفر الخدمة
+- طباعة حالة الخدمة عند بدء التشغيل
+
+---
+
+### الخطوة 9: Endpoint إرسال كود الجوال
+
+**الملف:** `routes/auth_routes.py`
+**المكان:** أضف بعد endpoints الإيميل
+
+```python
+@auth_bp.route('/api/auth/send-code-phone', methods=['POST'])
+def send_code_phone():
+    """
+    إرسال كود التحقق للجوال عبر WhatsApp
+    
+    Request Body:
+        {
+            "phone": "0501234567"  // رقم الجوال
+        }
+    
+    Response (نجاح):
+        {
+            "success": true,
+            "message": "تم إرسال الكود عبر واتساب",
+            "user_id": "123456789"
+        }
+    
+    Response (فشل):
+        {
+            "success": false,
+            "message": "سبب الفشل"
+        }
+    
+    التدفق:
+        1. التحقق من توفر Authentica
+        2. البحث عن المستخدم بالجوال
+        3. توليد كود 6 أرقام
+        4. حفظ الكود في Firebase
+        5. إرسال عبر Authentica
+        6. Fallback لـ Telegram إذا فشل
+    """
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+    
+    # === معالجة البيانات ===
+    phone = data.get('phone', '')
+    if isinstance(phone, dict):
+        phone = phone.get('phone', '') or ''
+    phone = str(phone).strip()
+    
+    if not phone:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال رقم الجوال'})
+    
+    # === التحقق من توفر Authentica ===
+    if not AUTHENTICA_AVAILABLE:
+        return jsonify({'success': False, 'message': 'خدمة الرسائل غير متاحة حالياً'})
+    
+    try:
+        # === البحث عن المستخدم ===
+        users_ref = db.collection('users')
+        user_id = None
+        user_doc = None
+        
+        # تجربة صيغ مختلفة للرقم
+        search_phones = [phone]
+        if phone.startswith('05'):
+            search_phones.append('+966' + phone[1:])
+        elif phone.startswith('+966'):
+            search_phones.append('0' + phone[4:])
+        elif phone.startswith('966'):
+            search_phones.append('+' + phone)
+            search_phones.append('0' + phone[3:])
+        
+        for search_phone in search_phones:
+            query = users_ref.where('phone', '==', search_phone).limit(1)
+            results = list(query.stream())
+            if results:
+                user_doc = results[0]
+                user_id = user_doc.id
+                print(f"✅ تم العثور على المستخدم: {user_id} بالرقم {search_phone}")
+                break
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': 'لا يوجد حساب مرتبط بهذا الرقم'})
+        
+        # === توليد وحفظ الكود ===
+        new_code = generate_code()
+        users_ref.document(user_id).update({
+            'verification_code': new_code,
+            'code_time': time.time()
+        })
+        
+        # === إرسال عبر Authentica ===
+        result = send_otp_whatsapp(phone, otp_code=new_code)
+        
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'message': result.get('message', 'تم إرسال الكود'),
+                'user_id': user_id
+            })
+        
+        # === Fallback لـ Telegram ===
+        try:
+            message_text = f"📱 كود التحقق:\n\n<code>{new_code}</code>\n\n⏰ صالح 10 دقائق"
+            bot.send_message(int(user_id), message_text, parse_mode='HTML')
+            return jsonify({
+                'success': True,
+                'message': '✅ تم إرسال الكود عبر Telegram',
+                'user_id': user_id
+            })
+        except Exception as tg_error:
+            print(f"❌ فشل Telegram أيضاً: {tg_error}")
+            return jsonify({'success': False, 'message': 'فشل إرسال الكود'})
+        
+    except Exception as e:
+        print(f"❌ Phone Send Code Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'حدث خطأ في النظام'})
+```
+
+---
+
+### الخطوة 10: Endpoint تسجيل الدخول بالجوال
+
+**الملف:** `routes/auth_routes.py`
+**المكان:** بعد `send_code_phone`
+
+```python
+@auth_bp.route('/api/auth/login-phone', methods=['POST'])
+def login_phone():
+    """
+    التحقق من الكود وتسجيل الدخول بالجوال
+    
+    Request Body:
+        {
+            "phone": "0501234567",   // رقم الجوال
+            "code": "123456",        // الكود المدخل
+            "user_id": "123456789"   // (اختياري) معرف المستخدم
+        }
+    
+    Response (نجاح):
+        {
+            "success": true,
+            "message": "تم تسجيل الدخول بنجاح"
+        }
+    
+    التدفق:
+        1. معالجة البيانات المدخلة
+        2. البحث عن المستخدم (بـ user_id أو الجوال)
+        3. التحقق من صلاحية الكود (10 دقائق)
+        4. التحقق عبر Authentica API ← مهم!
+        5. إنشاء الجلسة
+        6. مسح الكود
+    """
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+    
+    # === معالجة البيانات ===
+    phone = data.get('phone', '')
+    code = data.get('code', '')
+    user_id = data.get('user_id', '')
+    
+    # التأكد من أن البيانات strings (حماية من dict)
+    if isinstance(phone, dict):
+        phone = phone.get('phone', '') or ''
+    if isinstance(code, dict):
+        code = code.get('code', '') or ''
+    if isinstance(user_id, dict):
+        user_id = user_id.get('user_id', '') or ''
+    
+    phone = str(phone).strip()
+    code = str(code).strip()
+    user_id = str(user_id).strip()
+    
+    if not code:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال الكود'})
+    
+    try:
+        # === البحث عن المستخدم ===
+        if not user_id and phone:
+            users_ref = db.collection('users')
+            search_phones = [phone]
+            if phone.startswith('05'):
+                search_phones.append('+966' + phone[1:])
+            elif phone.startswith('+966'):
+                search_phones.append('0' + phone[4:])
+            
+            for search_phone in search_phones:
+                query = users_ref.where('phone', '==', search_phone).limit(1)
+                results = list(query.stream())
+                if results:
+                    user_id = results[0].id
+                    break
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        
+        # === جلب بيانات المستخدم ===
+        user_doc = db.collection('users').document(str(user_id)).get()
+        if not user_doc.exists:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        
+        user_data = user_doc.to_dict()
+        
+        # === التحقق من الصلاحية ===
+        code_time = user_data.get('code_time', 0)
+        if time.time() - code_time > 600:  # 10 دقائق
+            return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، اطلب كود جديد'})
+        
+        # === ⚠️ التحقق عبر Authentica API ===
+        # مهم جداً: بدون هذا سيظهر "Not Verified" في لوحة التحكم
+        if AUTHENTICA_AVAILABLE:
+            verify_result = verify_otp_authentica(phone, code)
+            if not verify_result.get('success'):
+                # Fallback للتحقق المحلي
+                saved_code = str(user_data.get('verification_code', ''))
+                if saved_code != code:
+                    return jsonify({'success': False, 'message': 'الكود غير صحيح'})
+                print(f"⚠️ Authentica verify failed, used local verification")
+            else:
+                print(f"✅ Authentica verified OTP successfully")
+        else:
+            # التحقق المحلي فقط
+            saved_code = str(user_data.get('verification_code', ''))
+            if saved_code != code:
+                return jsonify({'success': False, 'message': 'الكود غير صحيح'})
+        
+        # === ✅ تسجيل دخول ناجح ===
+        regenerate_session()
+        
+        session['user_id'] = user_id
+        session['user_name'] = user_data.get('username', user_data.get('first_name', 'مستخدم'))
+        session['user_phone'] = phone
+        session['logged_in'] = True
+        session['login_time'] = time.time()
+        session.permanent = True
+        session.modified = True
+        
+        # === مسح الكود ===
+        db.collection('users').document(str(user_id)).update({
+            'verification_code': None,
+            'code_time': None
+        })
+        
+        print(f"✅ تم تسجيل دخول المستخدم بالجوال: {user_id}")
+        return jsonify({'success': True, 'message': 'تم تسجيل الدخول بنجاح'})
+        
+    except Exception as e:
+        print(f"❌ Phone Login Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': 'حدث خطأ أثناء الدخول'})
+```
+
+---
+
+### الخطوة 11: تحسين Endpoint تسجيل الدخول العام
+
+**الملف:** `routes/auth_routes.py`
+**الدالة:** `/api/auth/login`
+**التحسين:** دعم البحث بالجوال بالإضافة للإيميل
+
+```python
+@auth_bp.route('/api/auth/login', methods=['POST'])
+def login_email():
+    """
+    التحقق من الكود وتسجيل الدخول (يدعم الإيميل والجوال)
+    
+    Request Body:
+        {
+            "email": "user@example.com",  // الإيميل (اختياري)
+            "phone": "0501234567",        // الجوال (اختياري)
+            "user_id": "123456789",       // معرف المستخدم (اختياري)
+            "code": "123456"              // الكود (مطلوب)
+        }
+    
+    ملاحظة: يجب تمرير واحد على الأقل: email أو phone أو user_id
+    
+    طريقة البحث:
+        1. إذا وُجد email → بحث بالإيميل
+        2. إذا وُجد user_id → بحث مباشر
+        3. إذا وُجد phone → بحث بالجوال (صيغ متعددة)
+    """
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+    
+    # معالجة البيانات
+    if isinstance(data, dict):
+        email = data.get('email', '').strip().lower() if isinstance(data.get('email'), str) else ''
+        code = data.get('code', '').strip() if isinstance(data.get('code'), str) else ''
+        phone = data.get('phone', '').strip() if isinstance(data.get('phone'), str) else ''
+        user_id = data.get('user_id', '').strip() if isinstance(data.get('user_id'), str) else ''
+    else:
+        return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
+    
+    if not code:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال الكود'})
+    
+    try:
+        user_doc = None
+        
+        # البحث بالإيميل
+        if email:
+            query = db.collection('users').where('email', '==', email).limit(1)
+            results = list(query.stream())
+            if results:
+                user_doc = results[0]
+        
+        # البحث بـ user_id
+        if not user_doc and user_id:
+            doc = db.collection('users').document(str(user_id)).get()
+            if doc.exists:
+                user_doc = doc
+        
+        # البحث بالجوال (صيغ متعددة)
+        if not user_doc and phone:
+            search_phones = [phone]
+            if phone.startswith('05'):
+                search_phones.append('+966' + phone[1:])
+            elif phone.startswith('+966'):
+                search_phones.append('0' + phone[4:])
+            elif phone.startswith('966'):
+                search_phones.append('+' + phone)
+                search_phones.append('0' + phone[3:])
+            
+            for search_phone in search_phones:
+                query = db.collection('users').where('phone', '==', search_phone).limit(1)
+                results = list(query.stream())
+                if results:
+                    user_doc = results[0]
+                    break
+        
+        if not user_doc:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        
+        # ... باقي الكود (التحقق من الكود والجلسة) ...
+```
+
+---
+
+### الخطوة 12: الواجهة - HTML
+
+**الملف:** `templates/categories.html`
+**المكان:** داخل modal تسجيل الدخول
+
+```html
+<!-- ==================== قسم الجوال ==================== -->
+<div id="phoneSection" class="auth-section">
+    <h4 class="section-title">📱 تسجيل الدخول بالجوال</h4>
+    
+    <!-- الخطوة 1: إدخال رقم الجوال -->
+    <div id="phoneStep1" class="step active">
+        <form id="phoneForm">
+            <div class="input-group">
+                <input type="tel" 
+                       id="loginPhone" 
+                       placeholder="05xxxxxxxx" 
+                       required
+                       pattern="[0-9]{10}"
+                       dir="ltr">
+                <span class="input-icon">📱</span>
+            </div>
+            <button type="submit" class="submit-btn">
+                إرسال كود التحقق
+            </button>
+        </form>
+        <div id="phoneError" class="error-msg"></div>
+        
+        <!-- رابط للتلغرام -->
+        <p class="switch-method">
+            <a href="#" onclick="switchToTelegram()">
+                الدخول بالتلغرام ←
+            </a>
+        </p>
+    </div>
+    
+    <!-- الخطوة 2: إدخال الكود -->
+    <div id="phoneStep2" class="step">
+        <p class="info-msg">تم إرسال الكود إلى <span id="sentPhoneDisplay"></span></p>
+        <form id="phoneVerifyForm">
+            <input type="text" 
+                   id="phoneVerifyCode" 
+                   class="code-input"
+                   placeholder="000000" 
+                   maxlength="6" 
+                   pattern="[0-9]{6}"
+                   inputmode="numeric"
+                   autocomplete="one-time-code"
+                   required>
+            <button type="submit" class="submit-btn">تأكيد الدخول</button>
+        </form>
+        <div id="phoneCodeError" class="error-msg"></div>
+        
+        <!-- زر العودة -->
+        <button onclick="goBackPhoneStep()" class="back-btn">
+            ← تغيير الرقم
+        </button>
+    </div>
+</div>
+```
+
+---
+
+### الخطوة 13: الواجهة - JavaScript
+
+**الملف:** `templates/categories.html`
+**المكان:** داخل `<script>` في نهاية الصفحة
+
+```javascript
+// ==================== متغيرات الجوال ====================
+window.loginPhone = null;
+window.currentUserId = null;
+
+// ==================== إرسال كود الجوال ====================
+document.getElementById('phoneForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const phone = document.getElementById('loginPhone').value.trim();
+    const errorDiv = document.getElementById('phoneError');
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    // إخفاء الخطأ السابق
+    errorDiv.style.display = 'none';
+    
+    // التحقق من الرقم
+    if (!phone || phone.length < 10) {
+        errorDiv.textContent = 'الرجاء إدخال رقم جوال صحيح';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // تعطيل الزر
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري الإرسال...';
+    
+    try {
+        const response = await fetch('/api/auth/send-code-phone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // حفظ البيانات
+            window.loginPhone = phone;
+            window.currentUserId = data.user_id;
+            
+            // حفظ في sessionStorage (للحماية من إعادة التحميل)
+            sessionStorage.setItem('loginPhone', phone);
+            sessionStorage.setItem('currentUserId', data.user_id);
+            
+            // الانتقال للخطوة 2
+            document.getElementById('phoneStep1').classList.remove('active');
+            document.getElementById('phoneStep2').classList.add('active');
+            document.getElementById('sentPhoneDisplay').textContent = phone;
+            document.getElementById('phoneVerifyCode').focus();
+        } else {
+            errorDiv.textContent = data.message;
+            errorDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errorDiv.textContent = 'خطأ في الاتصال بالسيرفر';
+        errorDiv.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'إرسال كود التحقق';
+    }
+});
+
+// ==================== التحقق من الكود ====================
+document.getElementById('phoneVerifyForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const code = document.getElementById('phoneVerifyCode').value.trim();
+    const errorDiv = document.getElementById('phoneCodeError');
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    errorDiv.style.display = 'none';
+    
+    if (!code || code.length !== 6) {
+        errorDiv.textContent = 'الرجاء إدخال الكود المكون من 6 أرقام';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري التحقق...';
+    
+    try {
+        const response = await fetch('/api/auth/login-phone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: window.loginPhone || sessionStorage.getItem('loginPhone'),
+                code: code,
+                user_id: window.currentUserId || sessionStorage.getItem('currentUserId')
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // مسح البيانات المحفوظة
+            window.loginPhone = null;
+            window.currentUserId = null;
+            sessionStorage.removeItem('loginPhone');
+            sessionStorage.removeItem('currentUserId');
+            
+            // إعادة تحميل الصفحة
+            location.reload();
+        } else {
+            errorDiv.textContent = data.message;
+            errorDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        errorDiv.textContent = 'خطأ في الاتصال بالسيرفر';
+        errorDiv.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'تأكيد الدخول';
+    }
+});
+
+// ==================== العودة للخطوة الأولى ====================
+function goBackPhoneStep() {
+    document.getElementById('phoneStep2').classList.remove('active');
+    document.getElementById('phoneStep1').classList.add('active');
+    document.getElementById('phoneVerifyCode').value = '';
+    document.getElementById('phoneCodeError').style.display = 'none';
+}
+
+// ==================== استعادة البيانات عند التحميل ====================
+document.addEventListener('DOMContentLoaded', function() {
+    // استعادة من sessionStorage إذا وُجدت
+    const savedPhone = sessionStorage.getItem('loginPhone');
+    const savedUserId = sessionStorage.getItem('currentUserId');
+    
+    if (savedPhone) {
+        window.loginPhone = savedPhone;
+        window.currentUserId = savedUserId;
+    }
+});
+```
+
+---
+
+## 🔧 إعداد Render Environment Variables
+
+اذهب إلى **Render Dashboard** → **Environment** وأضف:
+
+| المتغير | الوصف | مثال |
+|---------|-------|------|
+| `AUTHENTICA_API_KEY` | مفتاح API من Authentica | `$2y$10$XXXX...` |
+| `AUTHENTICA_METHOD` | طريقة الإرسال | `whatsapp` أو `sms` |
+| `AUTHENTICA_TEMPLATE_ID` | رقم القالب | `1` |
+
+**الحصول على API Key:**
+1. اذهب إلى https://portal.authentica.sa
+2. سجل دخول أو أنشئ حساب
+3. اذهب إلى **Settings** → **API Keys**
+4. انسخ المفتاح
+
+---
+
+## 📊 API Endpoints - ملخص
+
+### إرسال كود للجوال
+```
+POST /api/auth/send-code-phone
+Content-Type: application/json
+
+Request:
+{
+    "phone": "0501234567"
+}
+
+Response (نجاح):
+{
+    "success": true,
+    "message": "تم إرسال الكود عبر واتساب",
+    "user_id": "123456789"
+}
+```
+
+### تسجيل الدخول بالجوال
+```
+POST /api/auth/login-phone
+Content-Type: application/json
+
+Request:
+{
+    "phone": "0501234567",
+    "code": "123456",
+    "user_id": "123456789"
+}
+
+Response (نجاح):
+{
+    "success": true,
+    "message": "تم تسجيل الدخول بنجاح"
+}
+```
+
+---
+
+## 🗄️ بنية Firebase المطلوبة
+
+```javascript
+// Firebase > Firestore > users > {user_id}
+{
+    "username": "اسم_المستخدم",
+    "first_name": "الاسم",
+    "phone": "+966501234567",           // ← مطلوب للدخول بالجوال
+    "email": "user@example.com",        // للدخول بالإيميل
+    "verification_code": "123456",      // الكود (مؤقت)
+    "code_time": 1707177600,            // وقت الكود (timestamp)
+    "balance": 0.0
+}
+```
+
+---
+
+## 📁 ملخص الملفات
+
+```
+├── config.py                           # إعدادات Authentica
+│   └── AUTHENTICA_API_KEY, URL, METHOD, TEMPLATE_ID
+│
+├── services/
+│   └── authentica_service.py           # ← ملف جديد
+│       ├── is_authentica_configured()
+│       ├── format_phone_number()
+│       ├── send_otp_whatsapp()
+│       ├── verify_otp_authentica()     # ← مهم للتحقق
+│       └── get_authentica_balance()
+│
+├── routes/auth_routes.py
+│   ├── imports Authentica
+│   ├── /api/auth/send-code-phone       # ← جديد
+│   ├── /api/auth/login-phone           # ← جديد
+│   └── /api/auth/login (محسّن)         # ← يدعم الجوال
+│
+└── templates/categories.html
+    ├── phoneSection HTML
+    └── JavaScript (send-code, login, sessionStorage)
+```
+
+---
+
+## 🔒 الأمان
+
+| الميزة | التفاصيل |
+|--------|----------|
+| صلاحية الكود | 10 دقائق فقط |
+| مسح الكود | بعد الاستخدام الناجح |
+| التحقق المزدوج | Authentica API + محلي (fallback) |
+| sessionStorage | حماية البيانات من الضياع |
+| تنسيق الأرقام | دعم صيغ متعددة (05, +966, 966) |
+
+---
+
+## 🔧 استكشاف الأخطاء
+
+### "Not Verified" في لوحة تحكم Authentica
+- **السبب**: لم يتم استدعاء `verify_otp_authentica()`
+- **الحل**: تأكد من استخدام `/api/auth/login-phone` وليس التحقق المحلي فقط
+
+### "خدمة الرسائل غير متاحة"
+- **السبب**: `AUTHENTICA_API_KEY` غير موجود
+- **الحل**: أضفه في Render Environment Variables
+
+### "لا يوجد حساب مرتبط بهذا الرقم"
+- **السبب**: الرقم غير موجود في Firebase
+- **الحل**: أضف حقل `phone` للمستخدم بالصيغة الصحيحة
+
+### الكود لا يصل عبر WhatsApp
+- **السبب**: القالب غير مفعّل أو الرصيد منتهي
+- **الحل**: تحقق من لوحة تحكم Authentica
+
+---
+
+## ✅ قائمة التحقق
+
+### الإعدادات:
+- [ ] إضافة إعدادات Authentica في `config.py`
+- [ ] إنشاء `services/authentica_service.py`
+
+### الـ Routes:
+- [ ] إضافة imports Authentica في `auth_routes.py`
+- [ ] إضافة `/api/auth/send-code-phone`
+- [ ] إضافة `/api/auth/login-phone`
+- [ ] تحسين `/api/auth/login`
+
+### الواجهة:
+- [ ] إضافة HTML قسم الجوال
+- [ ] إضافة JavaScript
+
+### البيئة:
+- [ ] إعداد `AUTHENTICA_API_KEY` في Render
+- [ ] إضافة حقل `phone` للمستخدمين في Firebase
+
+---
+
 **تاريخ التحديث:** فبراير 2026
