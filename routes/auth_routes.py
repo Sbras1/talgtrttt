@@ -432,29 +432,77 @@ def login_email():
     
     # التأكد من أن البيانات strings وليست dict
     email = data.get('email', '')
+    phone = data.get('phone', '')  # دعم الجوال أيضاً
     code = data.get('code', '')
+    user_id = data.get('user_id', '')
     
-    # معالجة الحالة إذا كان email قادم كـ dict
+    # معالجة الحالة إذا كانت البيانات dict
     if isinstance(email, dict):
         email = email.get('email', '') or ''
+    if isinstance(phone, dict):
+        phone = phone.get('phone', '') or ''
     if isinstance(code, dict):
         code = code.get('code', '') or ''
+    if isinstance(user_id, dict):
+        user_id = user_id.get('user_id', '') or ''
     
     email = str(email).strip().lower()
+    phone = str(phone).strip()
     code = str(code).strip()
+    user_id = str(user_id).strip()
     
-    if not email or not code:
-        return jsonify({'success': False, 'message': 'الرجاء إدخال البريد والكود'})
+    if not code:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال الكود'})
+    
+    # إذا لم يكن هناك email أو phone، نحتاج واحد منهم على الأقل
+    if not email and not phone and not user_id:
+        return jsonify({'success': False, 'message': 'الرجاء إدخال البريد أو رقم الجوال'})
     
     try:
-        query = db.collection('users').where('email', '==', email).limit(1)
-        results = list(query.stream())
+        user_doc = None
         
-        if not results:
-            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        # البحث بالـ user_id أولاً (إذا متوفر)
+        if user_id:
+            doc = db.collection('users').document(str(user_id)).get()
+            if doc.exists:
+                user_doc = doc
+        
+        # البحث بالإيميل
+        if not user_doc and email:
+            query = db.collection('users').where('email', '==', email).limit(1)
+            results = list(query.stream())
+            if results:
+                user_doc = results[0]
+        
+        # البحث بالجوال (دعم صيغ متعددة)
+        if not user_doc and phone:
+            search_phones = [phone]
+            if phone.startswith('05'):
+                search_phones.append('+966' + phone[1:])
+                search_phones.append('966' + phone[1:])
+            elif phone.startswith('+966'):
+                search_phones.append('0' + phone[4:])
+            elif phone.startswith('966'):
+                search_phones.append('0' + phone[3:])
+                search_phones.append('+' + phone)
             
-        user_doc = results[0]
-        user_data = user_doc.to_dict()
+            for search_phone in search_phones:
+                query = db.collection('users').where('phone', '==', search_phone).limit(1)
+                results = list(query.stream())
+                if results:
+                    user_doc = results[0]
+                    break
+        
+        if not user_doc:
+            return jsonify({'success': False, 'message': 'الحساب غير موجود'})
+        
+        # جلب البيانات
+        if hasattr(user_doc, 'to_dict'):
+            user_data = user_doc.to_dict()
+            doc_id = user_doc.id
+        else:
+            user_data = user_doc.to_dict()
+            doc_id = user_doc.id
         
         # التحقق من انتهاء صلاحية الكود (10 دقائق)
         code_time = user_data.get('code_time', 0)
@@ -468,21 +516,24 @@ def login_email():
             regenerate_session()
             
             # دخول ناجح
-            session['user_id'] = user_doc.id
+            session['user_id'] = doc_id
             session['user_name'] = user_data.get('username', user_data.get('first_name', 'مستخدم'))
-            session['user_email'] = email
+            if email:
+                session['user_email'] = email
+            if phone:
+                session['user_phone'] = phone
             session['logged_in'] = True
             session['login_time'] = time.time()  # ⚠️ مهم جداً لمنع انتهاء الجلسة فوراً
             session.permanent = True
             session.modified = True  # تأكيد حفظ الجلسة
             
             # مسح الكود بعد الاستخدام
-            db.collection('users').document(user_doc.id).update({
+            db.collection('users').document(doc_id).update({
                 'verification_code': None,
                 'code_time': None
             })
             
-            print(f"✅ تم تسجيل دخول المستخدم: {user_doc.id} - Session: {dict(session)}")
+            print(f"✅ تم تسجيل دخول المستخدم: {doc_id}")
             return jsonify({'success': True, 'message': 'تم تسجيل الدخول بنجاح'})
         else:
             return jsonify({'success': False, 'message': 'الكود غير صحيح'})
