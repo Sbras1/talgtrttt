@@ -374,8 +374,11 @@ def send_code_email():
     data = request.json
     if not data:
         return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
-        
-    email = data.get('email', '').strip().lower()
+    
+    email = data.get('email', '')
+    if isinstance(email, dict):
+        email = email.get('email', '') or ''
+    email = str(email).strip().lower()
     
     if not email or '@' not in email:
         return jsonify({'success': False, 'message': 'الرجاء إدخال بريد إلكتروني صحيح'})
@@ -426,9 +429,19 @@ def login_email():
     data = request.json
     if not data:
         return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
-        
-    email = data.get('email', '').strip().lower()
-    code = data.get('code', '').strip()
+    
+    # التأكد من أن البيانات strings وليست dict
+    email = data.get('email', '')
+    code = data.get('code', '')
+    
+    # معالجة الحالة إذا كان email قادم كـ dict
+    if isinstance(email, dict):
+        email = email.get('email', '') or ''
+    if isinstance(code, dict):
+        code = code.get('code', '') or ''
+    
+    email = str(email).strip().lower()
+    code = str(code).strip()
     
     if not email or not code:
         return jsonify({'success': False, 'message': 'الرجاء إدخال البريد والكود'})
@@ -490,7 +503,10 @@ def send_code_phone():
     if not data:
         return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
     
-    phone = data.get('phone', '').strip()
+    phone = data.get('phone', '')
+    if isinstance(phone, dict):
+        phone = phone.get('phone', '') or ''
+    phone = str(phone).strip()
     
     if not phone:
         return jsonify({'success': False, 'message': 'الرجاء إدخال رقم الجوال'})
@@ -588,9 +604,21 @@ def login_phone():
     if not data:
         return jsonify({'success': False, 'message': 'بيانات غير صالحة'})
     
-    phone = data.get('phone', '').strip()
-    code = data.get('code', '').strip()
-    user_id = data.get('user_id', '').strip()  # يمكن تمريره من الخطوة السابقة
+    phone = data.get('phone', '')
+    code = data.get('code', '')
+    user_id = data.get('user_id', '')
+    
+    # التأكد من أن البيانات strings
+    if isinstance(phone, dict):
+        phone = phone.get('phone', '') or ''
+    if isinstance(code, dict):
+        code = code.get('code', '') or ''
+    if isinstance(user_id, dict):
+        user_id = user_id.get('user_id', '') or ''
+    
+    phone = str(phone).strip()
+    code = str(code).strip()
+    user_id = str(user_id).strip()
     
     if not code:
         return jsonify({'success': False, 'message': 'الرجاء إدخال الكود'})
