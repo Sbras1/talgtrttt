@@ -706,10 +706,22 @@ def login_phone():
         if time.time() - code_time > 600:
             return jsonify({'success': False, 'message': 'انتهت صلاحية الكود، اطلب كود جديد'})
         
-        # التحقق من الكود
-        saved_code = str(user_data.get('verification_code', ''))
-        if saved_code != code:
-            return jsonify({'success': False, 'message': 'الكود غير صحيح'})
+        # ✅ التحقق من الكود عبر Authentica API أولاً
+        if AUTHENTICA_AVAILABLE:
+            verify_result = verify_otp_authentica(phone, code)
+            if not verify_result.get('success'):
+                # إذا فشل التحقق من Authentica، نحاول التحقق المحلي كـ fallback
+                saved_code = str(user_data.get('verification_code', ''))
+                if saved_code != code:
+                    return jsonify({'success': False, 'message': 'الكود غير صحيح'})
+                print(f"⚠️ Authentica verify failed, used local verification")
+            else:
+                print(f"✅ Authentica verified OTP successfully")
+        else:
+            # التحقق المحلي إذا Authentica غير متاحة
+            saved_code = str(user_data.get('verification_code', ''))
+            if saved_code != code:
+                return jsonify({'success': False, 'message': 'الكود غير صحيح'})
         
         # ✅ تسجيل دخول ناجح
         regenerate_session()
